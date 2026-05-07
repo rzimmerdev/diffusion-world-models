@@ -35,9 +35,12 @@ def _(mo):
 
 @app.cell
 def _(
+    Arrow,
     DOWN,
     FadeIn,
     GRAY,
+    GREEN,
+    LEFT,
     ORIGIN,
     RED,
     RIGHT,
@@ -56,57 +59,212 @@ def _(
     config.pixel_width = 1280
     config.frame_rate = 30
 
-    class SlidingWindowAnimation(Scene):
+    class WorldModelAnimation(Scene):
+        """
+        Animation showing a world model: agent moving through grid world.
+
+        Narrative flow:
+        1. Show title and grid world with agent
+        2. Show history box accumulating frames
+        3. Show world model F block
+        4. Animate the flow: history → F → prediction
+        5. Show agent action and movement
+        6. Final learning message
+        """
+
+        def create_grid_world(self, grid_size=4, cell_size=0.6):
+            """Create a grid world with cells and return cells dict."""
+            grid_start = LEFT * 3.2 + DOWN * 0.3
+            grid = VGroup()
+            cells = {}
+            for row in range(grid_size):
+                for col in range(grid_size):
+                    cell = Square(side_length=cell_size, color=GRAY, fill_opacity=0.3)
+                    cell.move_to(
+                        grid_start + RIGHT * (col * cell_size) + UP * (row * cell_size)
+                    )
+                    grid.add(cell)
+                    cells[(row, col)] = cell
+            return grid, cells
+
+        def create_agent(self, cell_size=0.6):
+            """Create the agent (player) as a green square."""
+            return Square(side_length=cell_size * 0.6, color=GREEN, fill_opacity=0.8)
+
+        def create_history_box(self):
+            """Create the history box with mini frames."""
+            # History box on the left
+            history_box = Rectangle(
+                width=2.8, height=3.5, color=WHITE, fill_opacity=0.15
+            )
+            history_box.to_edge(LEFT, buff=0.8)
+            history_box.shift(UP * 0.5)
+
+            history_label = Text("History", font_size=22, color=WHITE)
+            history_label.next_to(history_box, UP, buff=0.15)
+
+            # Show mini frames in history box
+            mini_frames = VGroup()
+            for i in range(5):
+                mf = Square(side_length=0.35, color=WHITE, fill_opacity=0.5)
+                mf.move_to(history_box.get_center() + UP * (0.9 - i * 0.45))
+                mini_frames.add(mf)
+
+            frames_label = Text("I1  I2  ...  It", font_size=14, color=GRAY)
+            frames_label.next_to(history_box, DOWN, buff=0.1)
+
+            return history_box, history_label, mini_frames, frames_label
+
+        def create_world_model_block(self):
+            """Create the world model F block with arrow and prediction."""
+            # World model block in center
+            wm_box = Rectangle(width=1.8, height=1.2, color=RED, fill_opacity=0.2)
+            wm_box.move_to(ORIGIN + RIGHT * 1.5)
+
+            wm_label = Text("F", font_size=32, color=RED).move_to(wm_box.get_center())
+            wm_text = Text("World Model", font_size=14, color=RED).next_to(
+                wm_box, DOWN, buff=0.1
+            )
+
+            # Arrow from history to world model
+            hist_to_wm = Arrow(color=YELLOW, buff=0.1)
+
+            # Prediction output
+            pred_box = Square(side_length=0.7, color=GREEN, fill_opacity=0.3)
+            pred_box.next_to(wm_box, RIGHT, buff=1.0)
+
+            pred_label = Text("I{t+1}", font_size=16, color=GREEN)
+            pred_label.next_to(pred_box, DOWN, buff=0.1)
+
+            pred_label_full = Text("Predicted Frame", font_size=14, color=GREEN)
+            pred_label_full.next_to(pred_box, UP, buff=0.1)
+
+            # Arrow from world model to prediction
+            wm_to_pred = Arrow(color=WHITE, buff=0.1)
+
+            return {
+                "wm_box": wm_box,
+                "wm_label": wm_label,
+                "wm_text": wm_text,
+                "hist_to_wm": hist_to_wm,
+                "pred_box": pred_box,
+                "pred_label": pred_label,
+                "pred_label_full": pred_label_full,
+                "wm_to_pred": wm_to_pred,
+            }
+
         def construct(self):
-            title = Text("The Sliding Window Problem", font_size=36).to_edge(UP)
-            self.add(title)
+            # Step 1: Title
+            title = Text(
+                "World Model: From Observations & Actions to Next Frame", font_size=26
+            ).to_edge(UP)
+            self.play(FadeIn(title), run_time=0.5)
 
-            num_frames = 12
-            frame_size = 0.5
-            start_x = -5
+            # Step 2: Grid world
+            grid, cells = self.create_grid_world()
+            self.play(FadeIn(grid), run_time=0.5)
 
-            frames = VGroup()
-            for i in range(num_frames):
-                frame = Square(side_length=frame_size, color=WHITE)
-                frame.move_to(ORIGIN + RIGHT * (start_x + i * 0.9))
-                frames.add(frame)
-                self.add(frame)
+            # Add agent at starting position
+            agent = self.create_agent()
+            agent.move_to(cells[(2, 1)].get_center())
+            self.play(FadeIn(agent), run_time=0.3)
 
-            window = Rectangle(width=4.2, height=1.2, color=YELLOW, fill_opacity=0.3)
-            window.move_to(ORIGIN + RIGHT * (start_x + 1.5))
-            self.add(window)
+            # Label for the grid world
+            grid_label = Text("Environment", font_size=18, color=GRAY)
+            grid_label.next_to(grid, DOWN, buff=0.3)
+            self.play(FadeIn(grid_label), run_time=0.3)
 
-            window_label = Text("Context Window (K=4)", font_size=24, color=YELLOW)
-            window_label.next_to(window, UP, buff=0.3)
-            self.add(window_label)
+            # Step 3: History box
+            history_box, history_label, mini_frames, frames_label = (
+                self.create_history_box()
+            )
+            self.play(
+                FadeIn(history_box),
+                FadeIn(history_label),
+                run_time=0.5,
+            )
+            self.play(FadeIn(mini_frames), FadeIn(frames_label), run_time=0.4)
 
-            self.play(window.animate.shift(RIGHT * 0.9), run_time=0.5)
+            # Step 4: World model block
+            wm = self.create_world_model_block()
 
-            for i in range(1, num_frames - 3):
-                old_frame = frames[i-1]
-                lost_label = Text("LOST", font_size=16, color=RED).move_to(old_frame.get_center())
-                self.add(lost_label)
+            # Position arrows properly
+            wm["hist_to_wm"].put_start_and_end_on(
+                history_box.get_right() + RIGHT * 0.1,
+                wm["wm_box"].get_left() + LEFT * 0.1,
+            )
+            wm["wm_to_pred"].put_start_and_end_on(
+                wm["wm_box"].get_right() + RIGHT * 0.1,
+                wm["pred_box"].get_left() + LEFT * 0.1,
+            )
 
-                self.play(
-                    window.animate.shift(RIGHT * 0.9),
-                    old_frame.animate.set_color(GRAY).set_opacity(0.3),
-                    FadeIn(lost_label, shift=UP),
-                    run_time=0.5
-                )
-                self.remove(lost_label)
+            self.play(
+                FadeIn(wm["wm_box"]),
+                FadeIn(wm["wm_label"]),
+                FadeIn(wm["wm_text"]),
+                run_time=0.5,
+            )
 
-            summary = Text("Earlier context is permanently lost!", font_size=28, color=RED)
-            summary.to_edge(DOWN)
-            self.add(summary)
+            # Step 5: Animate the flow
+            self.play(
+                FadeIn(wm["hist_to_wm"]),
+                run_time=0.3,
+            )
 
-            self.play(FadeIn(summary))
+            # Processing animation
+            processing = Text("Computing...", font_size=14, color=YELLOW).move_to(
+                wm["wm_box"].get_center()
+            )
+            self.add(processing)
+            self.play(FadeIn(processing), run_time=0.4)
+            self.remove(processing)
+
+            self.play(
+                FadeIn(wm["wm_to_pred"]),
+                FadeIn(wm["pred_box"]),
+                FadeIn(wm["pred_label"]),
+                FadeIn(wm["pred_label_full"]),
+                run_time=0.5,
+            )
+
+            # Step 6: Show agent action
+            action_label = Text("action at", font_size=14, color=YELLOW).next_to(
+                history_box, DOWN, buff=0.2
+            )
+            action_value = Text("a_t", font_size=16, color=GREEN)
+            action_value.next_to(action_label, RIGHT, buff=0.1)
+            self.play(FadeIn(action_label), FadeIn(action_value), run_time=0.4)
+
+            # Step 7: Animate agent movement
+            path = [(2, 1), (2, 2), (2, 3), (1, 3), (0, 3)]
+            for i, (row, col) in enumerate(path):
+                target = cells[(row, col)].get_center()
+                self.play(agent.animate.move_to(target), run_time=0.5)
+
+                # Show action number below agent
+                if i < len(path) - 1:
+                    action_text = Text(
+                        f"a{chr(49 + i)}", font_size=12, color=YELLOW
+                    ).next_to(agent, DOWN, buff=0.05)
+                    self.play(FadeIn(action_text, shift=UP), run_time=0.2)
+                    self.remove(action_text)
+
+            # Step 8: Final message
+            final_label = Text(
+                "World Model F(·) learns to predict next frame from history & action",
+                font_size=18,
+                color=WHITE,
+            )
+            final_label.to_edge(DOWN, buff=0.8)
+            self.play(FadeIn(final_label), run_time=0.6)
+
             self.wait(2)
 
     # Use manim's ipython magic with media_embed
     ipython_magic.ManimMagic({}).manim(
-        "SlidingWindowAnimation",
+        "WorldModelAnimation",
         None,
-        {"SlidingWindowAnimation": SlidingWindowAnimation, "config": {"media_embed": True}},
+        {"WorldModelAnimation": WorldModelAnimation, "config": {"media_embed": True}},
     )
     return
 
@@ -227,6 +385,210 @@ def _(mo):
             ),
         ],
         gap=1,
+    )
+    return
+
+
+@app.cell
+def _(
+    Arrow,
+    DOWN,
+    FadeIn,
+    GRAY,
+    GREEN,
+    LEFT,
+    ORIGIN,
+    RED,
+    RIGHT,
+    Scene,
+    Square,
+    T,
+    Text,
+    UP,
+    VGroup,
+    WHITE,
+    YELLOW,
+    config,
+    ipython_magic,
+):
+    config.pixel_height = 720
+    config.pixel_width = 1280
+    config.frame_rate = 30
+
+    class DiffusionAnimation(Scene):
+        """Animation showing the diffusion forward and reverse process"""
+
+        def construct(self):
+            title = Text(
+                "Diffusion: Forward (Noising) & Reverse (Denoising)", font_size=28
+            ).to_edge(UP)
+            self.add(title)
+
+            # Create a grid to represent image pixels
+            grid_size = 4
+            pixel_size = 0.15
+
+            def create_pixel_grid(color, opacity=0.9):
+                """Create a simple representation of an image"""
+                pixels = VGroup()
+                for i in range(grid_size):
+                    for j in range(grid_size):
+                        pixel = Square(
+                            side_length=pixel_size, color=color, fill_opacity=opacity
+                        )
+                        pixel.move_to(
+                            ORIGIN
+                            + RIGHT * (i * pixel_size * 1.2)
+                            + DOWN * (j * pixel_size * 1.2)
+                        )
+                        pixels.add(pixel)
+                return pixels
+
+            # Forward process (top half)
+            forward_label = (
+                Text("Forward Process (Add Noise)", font_size=20, color=RED)
+                .to_edge(LEFT)
+                .shift(UP * 2)
+            )
+            self.add(forward_label)
+
+            # Start with clean image
+            clean = create_pixel_grid(GREEN)
+            clean.move_to(ORIGIN + LEFT * 4 + UP * 1)
+            self.add(clean)
+            clean_label = Text("x0", font_size=18, color=GREEN).next_to(
+                clean, DOWN, buff=0.1
+            )
+            self.add(clean_label)
+
+            # Arrow and progressively noisier images
+            positions = [LEFT * 1.5, LEFT * 0.5, RIGHT * 0.5, RIGHT * 1.5]
+            noise_levels = [0.3, 0.5, 0.7, 0.9]
+
+            for i, (pos, noise) in enumerate(zip(positions, noise_levels)):
+                # Arrow from previous
+                if i == 0:
+                    arrow = Arrow(
+                        start=clean.get_right(), end=pos + LEFT * 0.5, color=WHITE
+                    )
+                else:
+                    prev_pos = positions[i - 1]
+                    arrow = Arrow(
+                        start=prev_pos + RIGHT * 0.3, end=pos + LEFT * 0.3, color=WHITE
+                    )
+                self.add(arrow)
+
+                # Noisy image
+                noisy = create_pixel_grid(GRAY, opacity=noise)
+                noisy.move_to(pos)
+                self.add(noisy)
+
+                label = Text(f"x{i + 1}", font_size=16, color=GRAY).next_to(
+                    noisy, DOWN, buff=0.1
+                )
+                self.add(label)
+
+                # Beta label on arrow
+                beta_label = Text(f"β{i + 1}", font_size=14, color=RED).move_to(
+                    arrow.get_center() + UP * 0.2
+                )
+                self.add(beta_label)
+
+            # Final pure noise
+            final_noise = create_pixel_grid(GRAY, opacity=0.95)
+            final_noise.move_to(RIGHT * 2.5 + UP * 1)
+            self.add(final_noise)
+            final_label = Text("xT ~ N(0,I)", font_size=16, color=GRAY).next_to(
+                final_noise, DOWN, buff=0.1
+            )
+            self.add(final_label)
+
+            arrow_to_final = Arrow(
+                start=positions[-1].get_right() + RIGHT * 0.3,
+                end=final_noise.get_left(),
+                color=WHITE,
+            )
+            self.add(arrow_to_final)
+
+            # Reverse process (bottom half)
+            reverse_label = (
+                Text("Reverse Process (Denoise)", font_size=20, color=GREEN)
+                .to_edge(LEFT)
+                .shift(DOWN * 1.5)
+            )
+            self.add(reverse_label)
+
+            # Start from noise
+            start_noise = create_pixel_grid(GRAY, opacity=0.95)
+            start_noise.move_to(ORIGIN + LEFT * 4 + DOWN * 1.5)
+            self.add(start_noise)
+            start_label = Text("xT", font_size=18, color=GRAY).next_to(
+                start_noise, DOWN, buff=0.1
+            )
+            self.add(start_label)
+
+            # Arrows and progressively cleaner images
+            rev_positions = [LEFT * 1.5, LEFT * 0.5, RIGHT * 0.5, RIGHT * 1.5]
+            clean_levels = [0.7, 0.5, 0.3, 0.1]
+
+            for i, (pos, clean_op) in enumerate(zip(rev_positions, clean_levels)):
+                if i == 0:
+                    arrow = Arrow(
+                        start=start_noise.get_right(), end=pos + LEFT * 0.5, color=WHITE
+                    )
+                else:
+                    prev_pos = rev_positions[i - 1]
+                    arrow = Arrow(
+                        start=prev_pos + RIGHT * 0.3, end=pos + LEFT * 0.3, color=WHITE
+                    )
+                self.add(arrow)
+
+                denoised = create_pixel_grid(YELLOW, opacity=1 - clean_op)
+                denoised.move_to(pos)
+                self.add(denoised)
+
+                label = Text(f"x{T - i}", font_size=16, color=YELLOW).next_to(
+                    denoised, DOWN, buff=0.1
+                )
+                self.add(label)
+
+                # Epsilon theta label
+                eps_label = Text("εθ", font_size=14, color=GREEN).move_to(
+                    arrow.get_center() + DOWN * 0.2
+                )
+                self.add(eps_label)
+
+            # Final clean image
+            final_clean = create_pixel_grid(GREEN)
+            final_clean.move_to(RIGHT * 2.5 + DOWN * 1.5)
+            self.add(final_clean)
+            final_clean_label = Text(
+                "x0 (generated)", font_size=16, color=GREEN
+            ).next_to(final_clean, DOWN, buff=0.1)
+            self.add(final_clean_label)
+
+            arrow_to_clean = Arrow(
+                start=rev_positions[-1].get_right() + RIGHT * 0.3,
+                end=final_clean.get_left(),
+                color=WHITE,
+            )
+            self.add(arrow_to_clean)
+
+            # Summary text
+            summary = Text(
+                "Diffusion models transform noise into structured images",
+                font_size=18,
+                color=WHITE,
+            )
+            summary.to_edge(DOWN, buff=0.5)
+            self.play(FadeIn(summary), run_time=0.5)
+
+            self.wait(2)
+
+    ipython_magic.ManimMagic({}).manim(
+        "DiffusionAnimation",
+        None,
+        {"DiffusionAnimation": DiffusionAnimation, "config": {"media_embed": True}},
     )
     return
 
@@ -1252,23 +1614,34 @@ def _():
     import matplotlib
     import numpy as np
 
-    import matplotlib.patches as mpatches
-    import numpy as np
-
     return matplotlib, np, plt
 
 
 @app.cell
 def _():
-    from manim import Scene, Square, Text, VGroup, Rectangle, FadeIn
-    from manim import UP, RIGHT, DOWN, ORIGIN, GRAY, RED, WHITE, YELLOW
+    from manim import Scene, Square, Text, VGroup, Rectangle, FadeIn, Arrow
+    from manim import (
+        UP,
+        RIGHT,
+        DOWN,
+        LEFT,
+        ORIGIN,
+        GRAY,
+        RED,
+        WHITE,
+        YELLOW,
+        GREEN,
+    )
     from manim import config
     from manim.utils import ipython_magic
 
     return (
+        Arrow,
         DOWN,
         FadeIn,
         GRAY,
+        GREEN,
+        LEFT,
         ORIGIN,
         RED,
         RIGHT,
