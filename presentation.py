@@ -1,7 +1,28 @@
 import marimo
 
 __generated_with = "0.23.4"
-app = marimo.App(width="full", layout_file="layouts/presentation.slides.json")
+app = marimo.App(
+    width="full",
+    layout_file="layouts/presentation.slides.json",
+    css_file="custom.css",
+)
+
+
+@app.cell
+def _():
+    import logging
+
+    logging.getLogger("manim").setLevel(logging.ERROR)
+    return
+
+
+@app.cell
+def _():
+    from world_model_animation import WorldModelAnimation
+
+    scene_world_model = WorldModelAnimation()
+    _scene_world_model = scene_world_model.render()
+    return (scene_world_model,)
 
 
 @app.cell(hide_code=True)
@@ -11,8 +32,6 @@ def _(mo):
             mo.md("""
         # StateSpaceDiffuser
         ## Bringing Long Context to Diffusion World Models
-
-        ---
 
         **Nedko Savov · Naser Kazemi · Deheng Zhang · Danda Pani Paudel · Xi Wang · Luc Van Gool**
 
@@ -27,250 +46,14 @@ def _(mo):
                 kind="info",
             ),
         ],
-        gap=2,
+        gap=0.2,
         align="center",
     )
     return
 
 
-@app.cell
-def _(
-    Arrow,
-    DOWN,
-    FadeIn,
-    GRAY,
-    GREEN,
-    LEFT,
-    ORIGIN,
-    RED,
-    RIGHT,
-    Rectangle,
-    Scene,
-    Square,
-    Text,
-    UP,
-    VGroup,
-    WHITE,
-    YELLOW,
-    config,
-    ipython_magic,
-):
-    config.pixel_height = 720
-    config.pixel_width = 1280
-    config.frame_rate = 30
-
-    class WorldModelAnimation(Scene):
-        """
-        Animation showing a world model: agent moving through grid world.
-
-        Narrative flow:
-        1. Show title and grid world with agent
-        2. Show history box accumulating frames
-        3. Show world model F block
-        4. Animate the flow: history → F → prediction
-        5. Show agent action and movement
-        6. Final learning message
-        """
-
-        def create_grid_world(self, grid_size=4, cell_size=0.6):
-            """Create a grid world with cells and return cells dict."""
-            grid_start = LEFT * 3.2 + DOWN * 0.3
-            grid = VGroup()
-            cells = {}
-            for row in range(grid_size):
-                for col in range(grid_size):
-                    cell = Square(side_length=cell_size, color=GRAY, fill_opacity=0.3)
-                    cell.move_to(
-                        grid_start + RIGHT * (col * cell_size) + UP * (row * cell_size)
-                    )
-                    grid.add(cell)
-                    cells[(row, col)] = cell
-            return grid, cells
-
-        def create_agent(self, cell_size=0.6):
-            """Create the agent (player) as a green square."""
-            return Square(side_length=cell_size * 0.6, color=GREEN, fill_opacity=0.8)
-
-        def create_history_box(self):
-            """Create the history box with mini frames."""
-            # History box on the left
-            history_box = Rectangle(
-                width=2.8, height=3.5, color=WHITE, fill_opacity=0.15
-            )
-            history_box.to_edge(LEFT, buff=0.8)
-            history_box.shift(UP * 0.5)
-
-            history_label = Text("History", font_size=22, color=WHITE)
-            history_label.next_to(history_box, UP, buff=0.15)
-
-            # Show mini frames in history box
-            mini_frames = VGroup()
-            for i in range(5):
-                mf = Square(side_length=0.35, color=WHITE, fill_opacity=0.5)
-                mf.move_to(history_box.get_center() + UP * (0.9 - i * 0.45))
-                mini_frames.add(mf)
-
-            frames_label = Text("I1  I2  ...  It", font_size=14, color=GRAY)
-            frames_label.next_to(history_box, DOWN, buff=0.1)
-
-            return history_box, history_label, mini_frames, frames_label
-
-        def create_world_model_block(self):
-            """Create the world model F block with arrow and prediction."""
-            # World model block in center
-            wm_box = Rectangle(width=1.8, height=1.2, color=RED, fill_opacity=0.2)
-            wm_box.move_to(ORIGIN + RIGHT * 1.5)
-
-            wm_label = Text("F", font_size=32, color=RED).move_to(wm_box.get_center())
-            wm_text = Text("World Model", font_size=14, color=RED).next_to(
-                wm_box, DOWN, buff=0.1
-            )
-
-            # Arrow from history to world model
-            hist_to_wm = Arrow(color=YELLOW, buff=0.1)
-
-            # Prediction output
-            pred_box = Square(side_length=0.7, color=GREEN, fill_opacity=0.3)
-            pred_box.next_to(wm_box, RIGHT, buff=1.0)
-
-            pred_label = Text("I{t+1}", font_size=16, color=GREEN)
-            pred_label.next_to(pred_box, DOWN, buff=0.1)
-
-            pred_label_full = Text("Predicted Frame", font_size=14, color=GREEN)
-            pred_label_full.next_to(pred_box, UP, buff=0.1)
-
-            # Arrow from world model to prediction
-            wm_to_pred = Arrow(color=WHITE, buff=0.1)
-
-            return {
-                "wm_box": wm_box,
-                "wm_label": wm_label,
-                "wm_text": wm_text,
-                "hist_to_wm": hist_to_wm,
-                "pred_box": pred_box,
-                "pred_label": pred_label,
-                "pred_label_full": pred_label_full,
-                "wm_to_pred": wm_to_pred,
-            }
-
-        def construct(self):
-            # Step 1: Title
-            title = Text(
-                "World Model: From Observations & Actions to Next Frame", font_size=26
-            ).to_edge(UP)
-            self.play(FadeIn(title), run_time=0.5)
-
-            # Step 2: Grid world
-            grid, cells = self.create_grid_world()
-            self.play(FadeIn(grid), run_time=0.5)
-
-            # Add agent at starting position
-            agent = self.create_agent()
-            agent.move_to(cells[(2, 1)].get_center())
-            self.play(FadeIn(agent), run_time=0.3)
-
-            # Label for the grid world
-            grid_label = Text("Environment", font_size=18, color=GRAY)
-            grid_label.next_to(grid, DOWN, buff=0.3)
-            self.play(FadeIn(grid_label), run_time=0.3)
-
-            # Step 3: History box
-            history_box, history_label, mini_frames, frames_label = (
-                self.create_history_box()
-            )
-            self.play(
-                FadeIn(history_box),
-                FadeIn(history_label),
-                run_time=0.5,
-            )
-            self.play(FadeIn(mini_frames), FadeIn(frames_label), run_time=0.4)
-
-            # Step 4: World model block
-            wm = self.create_world_model_block()
-
-            # Position arrows properly
-            wm["hist_to_wm"].put_start_and_end_on(
-                history_box.get_right() + RIGHT * 0.1,
-                wm["wm_box"].get_left() + LEFT * 0.1,
-            )
-            wm["wm_to_pred"].put_start_and_end_on(
-                wm["wm_box"].get_right() + RIGHT * 0.1,
-                wm["pred_box"].get_left() + LEFT * 0.1,
-            )
-
-            self.play(
-                FadeIn(wm["wm_box"]),
-                FadeIn(wm["wm_label"]),
-                FadeIn(wm["wm_text"]),
-                run_time=0.5,
-            )
-
-            # Step 5: Animate the flow
-            self.play(
-                FadeIn(wm["hist_to_wm"]),
-                run_time=0.3,
-            )
-
-            # Processing animation
-            processing = Text("Computing...", font_size=14, color=YELLOW).move_to(
-                wm["wm_box"].get_center()
-            )
-            self.add(processing)
-            self.play(FadeIn(processing), run_time=0.4)
-            self.remove(processing)
-
-            self.play(
-                FadeIn(wm["wm_to_pred"]),
-                FadeIn(wm["pred_box"]),
-                FadeIn(wm["pred_label"]),
-                FadeIn(wm["pred_label_full"]),
-                run_time=0.5,
-            )
-
-            # Step 6: Show agent action
-            action_label = Text("action at", font_size=14, color=YELLOW).next_to(
-                history_box, DOWN, buff=0.2
-            )
-            action_value = Text("a_t", font_size=16, color=GREEN)
-            action_value.next_to(action_label, RIGHT, buff=0.1)
-            self.play(FadeIn(action_label), FadeIn(action_value), run_time=0.4)
-
-            # Step 7: Animate agent movement
-            path = [(2, 1), (2, 2), (2, 3), (1, 3), (0, 3)]
-            for i, (row, col) in enumerate(path):
-                target = cells[(row, col)].get_center()
-                self.play(agent.animate.move_to(target), run_time=0.5)
-
-                # Show action number below agent
-                if i < len(path) - 1:
-                    action_text = Text(
-                        f"a{chr(49 + i)}", font_size=12, color=YELLOW
-                    ).next_to(agent, DOWN, buff=0.05)
-                    self.play(FadeIn(action_text, shift=UP), run_time=0.2)
-                    self.remove(action_text)
-
-            # Step 8: Final message
-            final_label = Text(
-                "World Model F(·) learns to predict next frame from history & action",
-                font_size=18,
-                color=WHITE,
-            )
-            final_label.to_edge(DOWN, buff=0.8)
-            self.play(FadeIn(final_label), run_time=0.6)
-
-            self.wait(2)
-
-    # Use manim's ipython magic with media_embed
-    ipython_magic.ManimMagic({}).manim(
-        "WorldModelAnimation",
-        None,
-        {"WorldModelAnimation": WorldModelAnimation, "config": {"media_embed": True}},
-    )
-    return
-
-
 @app.cell(hide_code=True)
-def _(mo):
+def _(mo, mvideo, scene_world_model):
     mo.vstack(
         [
             mo.md("## What Is a World Model?"),
@@ -279,38 +62,23 @@ def _(mo):
                     mo.vstack(
                         [
                             mo.md("""
-                A **world model** is a learned generative system that can predict
-                future observations given past observations and actions.
-
-                Formally, given a trajectory of interactions
-                $$a_1, a_2, \\ldots, a_{T-1}$$
-                producing observations
-                $$I_1, I_2, \\ldots, I_T,$$
-                the world model $\\mathcal{F}$ predicts the next frame:
+                As most  of you will already know from both: 1. reading your own papers; 2. the previous presentations; 
+                a **world model** is a learned generative system that can predict future observations given past observations and actions.
+            
+                I will summarize the formal definition of a world model briefly so we are all on the same page, and then go on the more interesting aspects of the StateSpaceDiffuser model: 
+                given a trajectory of interactions $a_1, a_2, \\ldots, a_{T-1}$ producing observations $I_1, I_2, \\ldots, I_T,$ the world model $\\mathcal{F}$ predicts the next frame:
                 $$I_{T+1} = \\mathcal{F}\\bigl([I_1,\\ldots,I_T],\\,[a_1,\\ldots,a_T]\\bigr).$$
 
-                They are used everywhere: autonomous driving, game playing,
-                robotics planning, and virtual interaction. They are trained
-                purely from experience — no hand-coded physics.
+                As the vast range of topics in the assigned papers show, they can be used for a multitude of tasks: 
+                autonomous driving, game playing, robotics planning, and virtual interaction. 
+                These models are usually trained purely from experience i.e. no hand-coded physics.
                 """),
                         ],
                         gap=1,
                     ),
                     mo.vstack(
                         [
-                            mo.callout(
-                                mo.md("""
-                **MANIM PLACEHOLDER — Slide 2**
-
-                *Animation: An agent moving through a grid world. At each step,
-                an arrow labelled $a_t$ causes the scene to transition to the next
-                observation $I_{t+1}$. A box on the right accumulates the sequence
-                $I_1, I_2, \\ldots$ and shows the world model $\\mathcal{F}$ as a
-                black box reading from that history and emitting $\\hat{I}_{T+1}$.
-                Emphasise that the model learns this mapping purely from data.*
-                """),
-                                kind="neutral",
-                            ),
+                            mvideo(scene_world_model)
                         ],
                         gap=1,
                     ),
@@ -389,7 +157,7 @@ def _(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(
     Arrow,
     DOWN,
@@ -402,7 +170,6 @@ def _(
     RIGHT,
     Scene,
     Square,
-    T,
     Text,
     UP,
     VGroup,
@@ -504,7 +271,7 @@ def _(
             self.add(final_label)
 
             arrow_to_final = Arrow(
-                start=positions[-1].get_right() + RIGHT * 0.3,
+                start=positions[-1] + RIGHT * 0.3,
                 end=final_noise.get_left(),
                 color=WHITE,
             )
@@ -530,6 +297,8 @@ def _(
             # Arrows and progressively cleaner images
             rev_positions = [LEFT * 1.5, LEFT * 0.5, RIGHT * 0.5, RIGHT * 1.5]
             clean_levels = [0.7, 0.5, 0.3, 0.1]
+
+            T = len(rev_positions)
 
             for i, (pos, clean_op) in enumerate(zip(rev_positions, clean_levels)):
                 if i == 0:
@@ -568,7 +337,7 @@ def _(
             self.add(final_clean_label)
 
             arrow_to_clean = Arrow(
-                start=rev_positions[-1].get_right() + RIGHT * 0.3,
+                start=rev_positions[-1] + RIGHT * 0.3,
                 end=final_clean.get_left(),
                 color=WHITE,
             )
@@ -1645,7 +1414,6 @@ def _():
         ORIGIN,
         RED,
         RIGHT,
-        Rectangle,
         Scene,
         Square,
         Text,
@@ -1656,6 +1424,15 @@ def _():
         config,
         ipython_magic,
     )
+
+
+@app.cell
+def _(Scene, mo):
+    def mvideo(scene: Scene, width=900, height=900 * 9 / 16):
+        path = scene.renderer.file_writer.movie_file_path
+        return mo.video(src=str(path), width=width, height=height)
+
+    return (mvideo,)
 
 
 @app.cell

@@ -1,0 +1,30 @@
+:root {
+    --sl-font-size: 20px;
+}
+
+h1 {
+    font-size: 2rem;
+    margin: 0.2em 0;
+}
+
+h2 {
+    font-size: 1.5rem;
+    margin: 0.2em 0;
+}
+
+h3 {
+    font-size: 1.2rem;
+    margin: 0.2em 0;
+}
+
+h4, h5, h6 {
+    margin: 0.2em 0;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    line-height: 1.1;
+}
+
+.paragraph {
+  font-size: 1.2rem;
+}
