@@ -11,21 +11,28 @@ app = marimo.App(
 @app.cell
 def _():
     import logging
+    import importlib
 
-    logging.getLogger("manim").setLevel(logging.ERROR)
+    logging.getLogger("manim").setLevel(logging.WARNING)
+    return (importlib,)
+
+
+@app.cell
+def _():
     return
 
 
 @app.cell
 def _():
-    from world_model_animation import WorldModelAnimation
-
-    scene_world_model = WorldModelAnimation()
-    _scene_world_model = scene_world_model.render()
-    return (scene_world_model,)
+    return
 
 
-@app.cell(hide_code=True)
+@app.cell
+def _():
+    return
+
+
+@app.cell
 def _(mo):
     mo.vstack(
         [
@@ -52,8 +59,45 @@ def _(mo):
     return
 
 
+@app.cell
+def _(mo):
+    mo.md("""
+    ### Slide Index
+
+    1. **Title & Overview**
+    2. **What Is a World Model?**
+    3. **The Core Problem: Temporal Drift**
+    4. **Mathematical Background: Diffusion Models**
+    5. **Mathematical Background: State-Space Models**
+    6. **How Others Have Tried to Solve This**
+    7. **The Proposal: StateSpaceDiffuser**
+    8. **Architecture at a Glance**
+    9. **Training Protocol**
+    10. **Evaluating Long-Context Memory**
+    11. **Results: MiniGrid Quantitative Evaluation**
+    12. **Results: CSGO & Generalisation**
+    13. **Ablation: Do the SSM Features Matter?**
+    14. **Computational Cost: Almost Free**
+    15. **Limitations & Open Questions**
+    16. **Conclusion**
+    """)
+    return
+
+
+@app.cell
+def _(importlib, mo):
+    import world_model
+    importlib.reload(world_model)
+
+    scene_world_model = world_model.WorldModelAnimation()
+    _scene_world_model = scene_world_model.render()
+
+    video_world_model = mo.video(src=str(scene_world_model.renderer.file_writer.movie_file_path))
+    return (video_world_model,)
+
+
 @app.cell(hide_code=True)
-def _(mo, mvideo, scene_world_model):
+def _(mo, video_world_model):
     mo.vstack(
         [
             mo.md("## What Is a World Model?"),
@@ -62,11 +106,11 @@ def _(mo, mvideo, scene_world_model):
                     mo.vstack(
                         [
                             mo.md("""
-                As most  of you will already know from both: 1. reading your own papers; 2. the previous presentations; 
+                As most  of you will already know from both reading your assigned paper and the previous presentations,
                 a **world model** is a learned generative system that can predict future observations given past observations and actions.
-            
-                I will summarize the formal definition of a world model briefly so we are all on the same page, and then go on the more interesting aspects of the StateSpaceDiffuser model: 
-                given a trajectory of interactions $a_1, a_2, \\ldots, a_{T-1}$ producing observations $I_1, I_2, \\ldots, I_T,$ the world model $\\mathcal{F}$ predicts the next frame:
+
+                I will summarize the formal definition of a world model briefly and move on to more interesting aspects of the StateSpaceDiffuser model.
+                Given a trajectory of interactions $a_1, a_2, \\ldots, a_{T-1}$ producing observations $I_1, I_2, \\ldots, I_T,$ the world model $\\mathcal{F}$ predicts the next frame:
                 $$I_{T+1} = \\mathcal{F}\\bigl([I_1,\\ldots,I_T],\\,[a_1,\\ldots,a_T]\\bigr).$$
 
                 As the vast range of topics in the assigned papers show, they can be used for a multitude of tasks: 
@@ -78,7 +122,7 @@ def _(mo, mvideo, scene_world_model):
                     ),
                     mo.vstack(
                         [
-                            mvideo(scene_world_model)
+                             video_world_model
                         ],
                         gap=1,
                     ),
@@ -92,58 +136,85 @@ def _(mo, mvideo, scene_world_model):
     return
 
 
+@app.cell
+def _(importlib, mo):
+    import compare_diffusion
+    importlib.reload(compare_diffusion)
+
+    scene_compare_diffusion = compare_diffusion.CompareDiffusionAnimation()
+    _scene_compare_diffusion = scene_compare_diffusion.render()
+
+    video_compare_diffusion = mo.video(src=str(scene_compare_diffusion.renderer.file_writer.movie_file_path))
+    return (video_compare_diffusion,)
+
+
 @app.cell(hide_code=True)
+def _(mo, video_compare_diffusion):
+    mo.vstack(
+        [
+            mo.md("## The Core Problem: Temporal Drift"),
+            mo.hstack(
+                [
+                    video_compare_diffusion,
+                    mo.vstack(
+                        [
+                            mo.md("""
+                State-of-the-art world models are **diffusion models**, as most of you know already, powerful
+                generative models that produce high-fidelity images. But they have
+                a hard architectural constraint:
+
+                $$I_{T+1} = \\mathcal{F}\\bigl([I_{T-K+1},\\ldots,I_T],\\,[a_{T-K+1},\\ldots,a_T]\\bigr)$$
+
+                This means that the information they see is a filtration on the past $K$ frames typically $K = 4$ or $K = 16$.
+                This means the model does not consider anything before that window and it is simply **forgotten**.
+
+                As the agent explores and later revisits a location, the model has
+                no memory of what it looked like. The key term is that the scene **drifts**, and the model stops being temporally coherent anymore.
+                """),
+                        ],
+                        gap=1,
+                    ),
+                ],
+                widths=[0.45, 0.55],
+                gap=2,
+            ),
+        ],
+        gap=1,
+    )
+    return
+
+
+@app.cell
 def _(mo):
     mo.vstack(
         [
             mo.md("## The Core Problem: Temporal Drift"),
             mo.hstack(
                 [
-                    mo.vstack(
-                        [
-                            mo.callout(
+                    mo.callout(
                                 mo.md("""
-                **MANIM PLACEHOLDER — Slide 3**
-
-                *Animation: Show a long corridor in a video game. An agent walks
-                forward 20 steps (frames appear left to right). Then the agent
-                turns around and walks back. The diffusion baseline generates
-                frames for the return trip that look like a completely different
-                corridor — colours, textures, and layout have drifted. Then replay
-                with StateSpaceDiffuser: the return trip frames correctly match
-                the outbound frames. Use a side-by-side split to make the contrast
-                vivid.*
+                **Why not just increase $K$?**
+                The dominant backbone models (such as transformers) are usually quadratic in $T$ (e.g., transformers have $O(T^2)$ attention complexity). 
+                Doubling the context quadruples the compute. This means that long contexts quickly become computationally prohibitive for strong models.
                 """),
-                                kind="neutral",
+                                kind="warn",
                             ),
-                        ],
-                        gap=1,
-                    ),
                     mo.vstack(
                         [
                             mo.md("""
-                State-of-the-art world models are **diffusion models** — powerful
+                State-of-the-art world models are **diffusion models**, as most of you know already, powerful
                 generative models that produce high-fidelity images. But they have
                 a hard architectural constraint:
 
                 $$I_{T+1} = \\mathcal{F}\\bigl([I_{T-K+1},\\ldots,I_T],\\,[a_{T-K+1},\\ldots,a_T]\\bigr)$$
 
-                They only see the last $K$ frames — typically $K = 4$ or $K = 16$.
-                Everything before that window is simply **forgotten**.
+                This means that the information they see is a filtration on the past $K$ frames typically $K = 4$ or $K = 16$.
+                This means the model does not consider anything before that window and it is simply **forgotten**.
 
                 As the agent explores and later revisits a location, the model has
-                no memory of what it looked like. The generated scene **drifts**,
-                breaking temporal coherence.
+                no memory of what it looked like. The key term is that the scene **drifts**, and the model stops being temporally coherent anymore.
                 """),
-                            mo.callout(
-                                mo.md("""
-                **Why not just increase $K$?**
-                Transformers — the dominant backbone — have $O(T^2)$ attention
-                complexity. Doubling the context quadruples the compute. Long
-                contexts quickly become computationally prohibitive.
-                """),
-                                kind="warn",
-                            ),
+
                         ],
                         gap=1,
                     ),
@@ -175,13 +246,8 @@ def _(
     VGroup,
     WHITE,
     YELLOW,
-    config,
     ipython_magic,
 ):
-    config.pixel_height = 720
-    config.pixel_width = 1280
-    config.frame_rate = 30
-
     class DiffusionAnimation(Scene):
         """Animation showing the diffusion forward and reverse process"""
 
@@ -362,8 +428,20 @@ def _(
     return
 
 
+@app.cell
+def _(importlib, mo):
+    import diffusion_denoise
+    importlib.reload(diffusion_denoise)
+
+    scene_diffusion_denoise = diffusion_denoise.DiffusionProcessAnimation()
+    _scene_diffusion_denoise = scene_diffusion_denoise.render()
+
+    video_diffusion_denoise = mo.video(src=str(scene_diffusion_denoise.renderer.file_writer.movie_file_path))
+    return (video_diffusion_denoise,)
+
+
 @app.cell(hide_code=True)
-def _(mo):
+def _(mo, video_diffusion_denoise):
     mo.vstack(
         [
             mo.md("## Mathematical Background: Diffusion Models"),
@@ -395,20 +473,7 @@ def _(mo):
                     ),
                     mo.vstack(
                         [
-                            mo.callout(
-                                mo.md("""
-                **MANIM PLACEHOLDER — Slide 4**
-
-                *Animation: A clean image $x_0$ (e.g., a maze frame) is
-                progressively corrupted across $t = 0 \\to T$ — show Gaussian
-                noise being added step by step until the image is unrecognisable.
-                Then run the reverse direction: starting from pure noise, the
-                network iteratively denoises, revealing the image. Label each
-                arrow with $\\beta_t$ (forward) and $\\epsilon_\\theta$ (reverse).
-                Keep it clean and schematic.*
-                """),
-                                kind="neutral",
-                            ),
+                            video_diffusion_denoise,
                             mo.callout(
                                 mo.md("""
                 **Key insight:** Diffusion models are excellent at generating
@@ -430,54 +495,61 @@ def _(mo):
     return
 
 
+@app.cell
+def _(importlib, mo):
+    import ssm
+    importlib.reload(ssm)
+
+    scene_ssm = ssm.SSMAnimation()
+    _scene_ssm = scene_ssm.render()
+
+    video_ssm = mo.video(src=str(scene_ssm.renderer.file_writer.movie_file_path))
+    return (video_ssm,)
+
+
 @app.cell(hide_code=True)
+def _(mo, video_ssm):
+    mo.vstack(
+        [
+            mo.md("## Mathematical Background: State-Space Models"),
+            mo.hstack(
+                [
+                    video_ssm,
+                    mo.vstack(
+                        [
+                            mo.md("""
+                A **State-Space Model (SSM)** maintains a hidden state a compact summary $h_t$ of the entire history so far,
+                updated at every step of a sequence $f_1, \\ldots, f_T$
+
+                $$h_t = A\\,h_{t-1} + B\\,f_t, \\qquad m_t = C\\,h_t$$
+
+                The paper uses **Mamba** [Gu & Dao, 2023] which is a SSM variant
+                with *selective gating* that dynamically decides what information to retain or discard, which allows Mamba to be more expressive over simpler RNNs like LSTMs or GRUs.
+
+                $$\\Delta, B, C = \\text{Linear}(f_t), \\quad
+                  \\bar{A} = e^{\\Delta A}$$            
+                """),
+                        ],
+                        gap=1,
+                    ),
+                ],
+                widths=[0.45, 0.55],
+                gap=2,
+            ),
+        ],
+        gap=1,
+    )
+    return
+
+
+@app.cell
 def _(mo):
     mo.vstack(
         [
             mo.md("## Mathematical Background: State-Space Models"),
             mo.hstack(
                 [
-                    mo.vstack(
-                        [
-                            mo.callout(
-                                mo.md("""
-                **MANIM PLACEHOLDER — Slide 5**
-
-                *Animation: Draw a linear chain of time steps $t=1,2,\\ldots,T$.
-                At each step, a compact state vector $h_t$ (shown as a small
-                coloured rectangle) is updated from $h_{t-1}$ and the new input
-                $f_t$. Annotate with the recurrence equations. Then show a
-                comparison column: a Transformer re-reads all previous tokens at
-                every step (expensive), while the SSM only needs $h_{t-1}$ and
-                $f_t$ (constant cost). Highlight the constant memory footprint.*
-                """),
-                                kind="neutral",
-                            ),
-                        ],
-                        gap=1,
-                    ),
-                    mo.vstack(
-                        [
-                            mo.md("""
-                A **State-Space Model (SSM)** maintains a hidden state $h_t$
-                updated at every step of a sequence $f_1, \\ldots, f_T$:
-
-                $$h_t = A\\,h_{t-1} + B\\,f_t, \\qquad m_t = C\\,h_t$$
-
-                where $A, B, C$ are **learned** parameter matrices and $h_t$
-                is a compact summary of the entire history so far.
-
-                The paper uses **Mamba** [Gu & Dao, 2023] — an SSM variant
-                with a *selective gating* mechanism that dynamically decides
-                what information to retain or discard:
-
-                $$\\Delta, B, C = \\text{Linear}(f_t), \\quad
-                  \\bar{A} = e^{\\Delta A}$$
-
-                This gives Mamba its expressive advantage over simpler RNNs
-                like LSTMs or GRUs.
-                """),
-                            mo.callout(
+                    mo.callout(
                                 mo.md("""
                 **Complexity comparison**
 
@@ -492,6 +564,21 @@ def _(mo):
                 """),
                                 kind="success",
                             ),
+                    mo.vstack(
+                        [
+                            mo.md("""
+                A **State-Space Model (SSM)** maintains a hidden state a compact summary $h_t$ of the entire history so far,
+                updated at every step of a sequence $f_1, \\ldots, f_T$
+
+                $$h_t = A\\,h_{t-1} + B\\,f_t, \\qquad m_t = C\\,h_t$$
+
+                The paper uses **Mamba** [Gu & Dao, 2023] which is a SSM variant
+                with *selective gating* that dynamically decides what information to retain or discard, which allows Mamba to be more expressive over simpler RNNs like LSTMs or GRUs.
+
+                $$\\Delta, B, C = \\text{Linear}(f_t), \\quad
+                  \\bar{A} = e^{\\Delta A}$$            
+                """),
+
                         ],
                         gap=1,
                     ),
@@ -705,6 +792,20 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
+    mo.callout(
+                                mo.md("""
+                **MANIM PLACEHOLDER — Slide 9**
+
+                *Animation: A two-panel timeline. Left panel: Stage 1 —
+                the SSM reads a long sequence and a loss arrow points at
+                its output. Right panel: Stage 2 — the SSM is shown
+                "frozen" (grey, padlocked), while the diffusion UNet
+                is highlighted in orange and trained. Show the gradient
+                flow arrows stopping at the frozen SSM boundary.*
+                """),
+                                kind="neutral",
+                            )
+
     mo.vstack(
         [
             mo.md("## Training Protocol"),
@@ -753,19 +854,7 @@ def _(mo):
                 """),
                                 kind="warn",
                             ),
-                            mo.callout(
-                                mo.md("""
-                **MANIM PLACEHOLDER — Slide 9**
 
-                *Animation: A two-panel timeline. Left panel: Stage 1 —
-                the SSM reads a long sequence and a loss arrow points at
-                its output. Right panel: Stage 2 — the SSM is shown
-                "frozen" (grey, padlocked), while the diffusion UNet
-                is highlighted in orange and trained. Show the gradient
-                flow arrows stopping at the frozen SSM boundary.*
-                """),
-                                kind="neutral",
-                            ),
                         ],
                         gap=1,
                     ),
@@ -1055,7 +1144,7 @@ def _(mo):
     return
 
 
-@app.cell(hide_code=True)
+@app.cell
 def _(mo):
     mo.vstack(
         [
@@ -1087,26 +1176,30 @@ def _(mo):
                         ],
                         gap=1,
                     ),
+                    mo.image("ablation.png")
+                ],
+                widths=[0.5, 0.5],
+                gap=2,
+            ),
+        ],
+        gap=1,
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+
+
+    mo.vstack(
+        [
+            mo.md("## Ablation: Do the SSM Features Actually Matter?"),
+            mo.hstack(
+                [
                     mo.vstack(
                         [
                             mo.callout(
                                 mo.md("""
-                **MANIM PLACEHOLDER — Slide 13**
-
-                *Animation: Show three columns of generated frames for the
-                same CSGO sequence — ground truth, DIAMOND baseline, and
-                SSD. Zoom into the return-trip frames. Highlight with red
-                circles the hallucinated content in DIAMOND (wrong wall
-                colours, missing objects) and show SSD correctly reproducing
-                the original scene. Then fade in a fourth column: SSD without
-                SSM features — it hallucinates just like DIAMOND, confirming
-                the SSM is load-bearing.*
-                """),
-                                kind="neutral",
-                            ),
-                            mo.callout(
-                                mo.md("""
-                **The complementarity picture**
 
                 | Capability | SSM alone | Diffusion alone | **SSD** |
                 |---|---|---|---|
@@ -1120,6 +1213,7 @@ def _(mo):
                         ],
                         gap=1,
                     ),
+                    mo.image("ablation.png")
                 ],
                 widths=[0.5, 0.5],
                 gap=2,
@@ -1206,16 +1300,16 @@ def _(mo, plt):
     return
 
 
-app._unparsable_cell(
-    """
+@app.cell
+def _(mo):
     mo.vstack(
         [
-            mo.md(\"## Limitations & Open Questions\"),
+            mo.md("## Limitations & Open Questions"),
             mo.hstack(
                 [
                     mo.vstack(
                         [
-                            mo.md(\"\"\"
+                            mo.md("""
                 The paper is candid about what does not yet work well.
 
                 **Low-dimensional bottleneck.** The SSM state has dimension 256.
@@ -1239,14 +1333,14 @@ app._unparsable_cell(
                 equally — there is no mechanism to explicitly prioritise
                 task-relevant memories over irrelevant ones. Selective
                 attention over the state is a natural extension.
-                \"\"\"),
+                """),
                         ],
                         gap=1,
                     ),
                     mo.vstack(
                         [
                             mo.callout(
-                                mo.md(\"\"\"
+                                mo.md("""
                 **What this means for the field**
 
                 The result opens a new design axis for world models:
@@ -1256,12 +1350,11 @@ app._unparsable_cell(
                 may generalise well beyond this specific architecture.
                 SSMs are a natural fit for any sequential generative task
                 where context windows are the binding constraint.
-                \"\"\"),
-                                kind=\"info\",
-    literature 
+                """),
+                                kind="info",
                             ),
                             mo.callout(
-                                mo.md(\"\"\"
+                                mo.md("""
                 **Future directions suggested by the authors**
 
                 Scaling the SSM state dimension and depth.
@@ -1269,8 +1362,8 @@ app._unparsable_cell(
                 Applying the approach to real-world ego-centric video.
                 Combining with agent planning — the persistent state
                 could serve as a planning memory for RL agents.
-                \"\"\"),
-                                kind=\"neutral\",
+                """),
+                                kind="neutral",
                             ),
                         ],
                         gap=1,
@@ -1282,9 +1375,7 @@ app._unparsable_cell(
         ],
         gap=1,
     )
-    """,
-    name="_"
-)
+    return
 
 
 @app.cell(hide_code=True)
@@ -1329,20 +1420,6 @@ def _(mo):
                     ),
                     mo.vstack(
                         [
-                            mo.callout(
-                                mo.md("""
-                **MANIM PLACEHOLDER — Slide 16 (Closing)**
-
-                *Animation: A final, satisfying replay of the opening scene
-                (Slide 3) — the agent walks forward and returns. This time,
-                show the SSM state $h_t$ as a glowing orb that grows and
-                "remembers" the corridor as the agent walks through it.
-                On the return trip, the orb lights up the correct memory
-                and the generated frames match the ground truth perfectly.
-                Fade to the paper title and authors.*
-                """),
-                                kind="neutral",
-                            ),
                             mo.md("""
                 **Paper:** arXiv:2505.22246
 
@@ -1351,11 +1428,9 @@ def _(mo):
 
                 **Key references**
 
-                Gu & Dao (2023) — Mamba
-
-                Alonso et al. (2024) — DIAMOND
-
-                Hafner et al. (2023) — DreamerV3
+                - Gu & Dao (2023): Mamba
+                - Alonso et al. (2024): DIAMOND
+                - Hafner et al. (2023): DreamerV3
                 """),
                         ],
                         gap=1,
@@ -1370,24 +1445,14 @@ def _(mo):
     return
 
 
-@app.cell(hide_code=True)
-def _():
-    import marimo as mo
-
-    return (mo,)
-
-
 @app.cell
 def _():
     import matplotlib.pyplot as plt
     import matplotlib
+
+    import marimo as mo
     import numpy as np
 
-    return matplotlib, np, plt
-
-
-@app.cell
-def _():
     from manim import Scene, Square, Text, VGroup, Rectangle, FadeIn, Arrow
     from manim import (
         UP,
@@ -1402,7 +1467,10 @@ def _():
         GREEN,
     )
     from manim import config
-    from manim.utils import ipython_magic
+
+    def mvideo(scene: Scene, width=900, height=900 * 9 / 16):
+        path = scene.renderer.file_writer.movie_file_path
+        return mo.video(src=str(path), width=width, height=height)
 
     return (
         Arrow,
@@ -1421,18 +1489,11 @@ def _():
         VGroup,
         WHITE,
         YELLOW,
-        config,
-        ipython_magic,
+        matplotlib,
+        mo,
+        np,
+        plt,
     )
-
-
-@app.cell
-def _(Scene, mo):
-    def mvideo(scene: Scene, width=900, height=900 * 9 / 16):
-        path = scene.renderer.file_writer.movie_file_path
-        return mo.video(src=str(path), width=width, height=height)
-
-    return (mvideo,)
 
 
 @app.cell
