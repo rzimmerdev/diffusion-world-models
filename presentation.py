@@ -79,7 +79,8 @@ def _(mo):
     13. **Ablation: Do the SSM Features Matter?**
     14. **Computational Cost: Almost Free**
     15. **Limitations & Open Questions**
-    16. **Conclusion**
+    16. **Criticism & Gaps Not Addressed**
+    17. **Conclusion**
     """)
     return
 
@@ -1064,7 +1065,7 @@ def _(fig, mo):
                 """),
                                 kind="success",
                             ),
-                        
+
                         ],
                         gap=1,
                     ),
@@ -1340,7 +1341,6 @@ def _(FancyBboxPatch, plt):
         )
 
     plt.tight_layout()
-
     return (fig2,)
 
 
@@ -1361,7 +1361,7 @@ def _(fig2, mo):
                     mo.vstack(
                         [
                             mo.md("""
-            
+
 
                 The reason is architectural. At inference time, the Mamba SSM
                 processes each new frame in a single recurrent step — no
@@ -1426,7 +1426,7 @@ def _(fig2, mo):
                 """),
                                 kind="success",
                             ),
-                        
+
                         ],
                         gap=0,
                     ),
@@ -1510,6 +1510,107 @@ def _(mo):
                     ),
                 ],
                 widths=[0.55, 0.45],
+                gap=2,
+            ),
+        ],
+        gap=1,
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.vstack(
+        [
+            mo.md("## Criticism & Gaps Not Addressed"),
+            mo.hstack(
+                [
+                    mo.vstack(
+                        [
+                            mo.callout(
+                                mo.md("""
+    **1. Two-stage training is a workaround, not a feature.**
+
+    The paper frames decoupled training as a design choice, but it is
+    really a response to failure: end-to-end training *collapses*
+    because the diffusion model learns to ignore the SSM features.
+    The frozen SSM never benefits from the generative objective, so
+    the features it produces are *not* optimised for the diffusion
+    model's needs — they are a fixed, suboptimal interface.
+                                """),
+                                kind="warn",
+                            ),
+                            mo.callout(
+                                mo.md("""
+    **2. Weak baselines — only DIAMOND and their own SSM.**
+
+    The paper cites concurrent work (e.g., [[51]](https://arxiv.org/abs/2505.18236),
+    [[74]](https://arxiv.org/abs/2407.07764), [[81]](https://arxiv.org/abs/2409.01720))
+    that also address long-context consistency by sampling historical
+    frames, but does not benchmark against any of them. The only
+    comparison target is a 4-frame diffusion model, making the
+    "order of magnitude" claim less impressive than it sounds.
+                                """),
+                                kind="warn",
+                            ),
+                            mo.callout(
+                                mo.md("""
+    **3. Tiny user study (N=12) for the only real-world domain.**
+
+    PSNR/SSIM are used for MiniGrid, but CSGO — the visually complex
+    environment that matters for practical deployment — relies on a
+    subjective study with just 12 participants. The preference ratings
+    (0.20–0.24) are close to borderline (0). Statistical significance
+    is not reported.
+                                """),
+                                kind="warn",
+                            ),
+                        ],
+                        gap=1,
+                    ),
+                    mo.vstack(
+                        [
+                            mo.callout(
+                                mo.md("""
+    **4. Severe information bottleneck.**
+
+    The entire history is compressed into a 256-dimensional state.
+    For CSGO (51 action types, complex 3D geometry), this is
+    extremely lossy. The paper acknowledges detail decay but does
+    not quantify *what* information is lost or provide ablations
+    at different state sizes.
+                                """),
+                                kind="warn",
+                            ),
+                            mo.callout(
+                                mo.md("""
+    **5. Flattened spatial features lose locality.**
+
+    The SSM processes full-frame Cosmos features flattened into a
+    single vector per timestep. The paper argues this avoids
+    "conflating spatial and temporal dependencies," but it also
+    means the SSM cannot provide spatially-localised memory
+    (*"what was in the top-left corner 50 steps ago?"*).
+                                """),
+                                kind="warn",
+                            ),
+                            mo.callout(
+                                mo.md("""
+    **6. Context lengths are still modest.**
+
+    "Long context" means 50–150 steps. For real-world deployment
+    (autonomous driving at 30 fps = 5 seconds), this is very short.
+    The PSNR drops from 39.7 (ctx 50) to 30.8 (ctx 150), suggesting
+    degradation under genuine scaling, not the flat curve one would
+    hope for from a truly persistent memory.
+                                """),
+                                kind="warn",
+                            ),
+                        ],
+                        gap=1,
+                    ),
+                ],
+                widths=[0.5, 0.5],
                 gap=2,
             ),
         ],
