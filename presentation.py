@@ -790,22 +790,20 @@ def _(mo):
     return
 
 
-@app.cell(hide_code=True)
+@app.cell
+def _(importlib, mo):
+    import two_stage
+    importlib.reload(two_stage)
+
+    scene_two_stage = two_stage.TwoStageTraining()
+    _scene_two_stage = scene_two_stage.render()
+
+    video_two_stage = mo.video(src=str(scene_two_stage.renderer.file_writer.movie_file_path))
+    return (video_two_stage,)
+
+
+@app.cell
 def _(mo):
-    mo.callout(
-                                mo.md("""
-                **MANIM PLACEHOLDER — Slide 9**
-
-                *Animation: A two-panel timeline. Left panel: Stage 1 —
-                the SSM reads a long sequence and a loss arrow points at
-                its output. Right panel: Stage 2 — the SSM is shown
-                "frozen" (grey, padlocked), while the diffusion UNet
-                is highlighted in orange and trained. Show the gradient
-                flow arrows stopping at the frozen SSM boundary.*
-                """),
-                                kind="neutral",
-                            )
-
     mo.vstack(
         [
             mo.md("## Training Protocol"),
@@ -868,8 +866,26 @@ def _(mo):
     return
 
 
-@app.cell(hide_code=True)
-def _(mo):
+@app.cell
+def _(video_two_stage):
+    video_two_stage
+    return
+
+
+@app.cell
+def _(importlib, mo):
+    import long_context
+    importlib.reload(long_context)
+
+    scene_long_context = long_context.LongContextComparison()
+    _scene_long_context = scene_long_context.render()
+
+    video_long_context = mo.video(src=str(scene_long_context.renderer.file_writer.movie_file_path))
+    return (video_long_context,)
+
+
+@app.cell
+def _(mo, video_long_context):
     mo.vstack(
         [
             mo.md("## Evaluating Long-Context Memory"),
@@ -881,22 +897,7 @@ def _(mo):
                 [
                     mo.vstack(
                         [
-                            mo.callout(
-                                mo.md("""
-                **MANIM PLACEHOLDER — Slide 10**
-
-                *Animation: Show an agent walking through a maze for $n$ steps
-                (forward trajectory, frames shown left to right). At the midpoint,
-                a "U-turn" arrow appears and the agent retraces its steps for
-                $n$ steps (reverse trajectory). For each reverse frame, draw a
-                dotted line back to the corresponding forward frame and show the
-                PSNR score. For the diffusion baseline, the reverse frames look
-                nothing like the forward ones (low PSNR, highlighted red). For
-                StateSpaceDiffuser, they match closely (high PSNR, highlighted
-                green). The further back in the sequence, the bigger the gap.*
-                """),
-                                kind="neutral",
-                            ),
+                            video_long_context
                         ],
                         gap=1,
                     ),
@@ -915,7 +916,40 @@ def _(mo):
                 Evaluation metric: **PSNR** on each reverse frame, especially
                 the final frame, which requires recalling frame $I_1$ — the
                 oldest possible memory.
+                """),
+                        ],
+                        gap=0,
+                    ),
+                ],
+                widths=[0.45, 0.55],
+                gap=2,
+            ),
+        ],
+        gap=1,
+    )
+    return
 
+
+@app.cell
+def _(mo):
+    mo.vstack(
+        [
+            mo.md("## Evaluating Long-Context Memory"),
+            mo.md("""
+        The authors design a clever evaluation protocol specifically to stress-test
+        long-term memory — something standard video metrics do not capture.
+        """),
+            mo.hstack(
+                [
+                    mo.vstack(
+                        [
+                            mo.image("csgo.png")
+                        ],
+                        gap=1,
+                    ),
+                    mo.vstack(
+                        [
+                            mo.md("""
                 Two environments:
 
                 **MiniGrid** — a 2D maze with partial observations.
@@ -928,7 +962,7 @@ def _(mo):
                 known mismatch between PSNR and perceptual quality in video.
                 """),
                         ],
-                        gap=1,
+                        gap=0,
                     ),
                 ],
                 widths=[0.45, 0.55],
@@ -940,8 +974,8 @@ def _(mo):
     return
 
 
-@app.cell(hide_code=True)
-def _(matplotlib, mo, np, plt):
+@app.cell
+def _(matplotlib, np, plt):
     matplotlib.rcParams.update(
         {
             "font.family": "monospace",
@@ -1001,7 +1035,11 @@ def _(matplotlib, mo, np, plt):
         "MiniGrid Quantitative Results — Table 1", color="#cce", fontsize=11, y=1.02
     )
     fig.tight_layout()
+    return (fig,)
 
+
+@app.cell(hide_code=True)
+def _(fig, mo):
     mo.vstack(
         [
             mo.md("## Results: MiniGrid Quantitative Evaluation"),
@@ -1026,6 +1064,34 @@ def _(matplotlib, mo, np, plt):
                 """),
                                 kind="success",
                             ),
+                        
+                        ],
+                        gap=1,
+                    ),
+                ],
+                widths=[0.55, 0.45],
+                gap=2,
+            ),
+        ],
+        gap=1,
+    )
+    return
+
+
+@app.cell
+def _(fig, mo):
+    mo.vstack(
+        [
+            mo.md("## Results: MiniGrid Quantitative Evaluation"),
+            mo.hstack(
+                [
+                    mo.vstack(
+                        [
+                            mo.as_html(fig),
+                        ]
+                    ),
+                    mo.vstack(
+                        [
                             mo.md("""
                 Three baselines are compared:
 
@@ -1046,7 +1112,7 @@ def _(matplotlib, mo, np, plt):
                     ),
                 ],
                 widths=[0.55, 0.45],
-                gap=2,
+                gap=1,
             ),
         ],
         gap=1,
@@ -1189,8 +1255,6 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-
-
     mo.vstack(
         [
             mo.md("## Ablation: Do the SSM Features Actually Matter?"),
@@ -1224,32 +1288,64 @@ def _(mo):
     return
 
 
-@app.cell(hide_code=True)
-def _(mo, plt):
-    fig2, ax2 = plt.subplots(figsize=(7, 3))
+@app.cell
+def _(FancyBboxPatch, plt):
+    fig2, ax2 = plt.subplots(figsize=(7, 2.5))
     fig2.patch.set_facecolor("#0f0f1a")
     ax2.set_facecolor("#0f0f1a")
+    ax2.set_xlim(0, 3)
+    ax2.set_ylim(0, 1)
+    ax2.axis("off")
 
     components = ["DIAMOND\n(diffusion)", "SSM\n(Mamba)", "Fusion\nMLP"]
     sizes = [98, 1.5, 0.5]
-    colors2 = ["#e05c5c", "#5ce08a", "#5cb8e0"]
+    colors_2 = ["#e05c5c", "#5ce08a", "#5cb8e0"]
 
-    wedges, texts, autotexts = ax2.pie(
-        sizes,
-        labels=components,
-        colors=colors2,
-        autopct="%1.1f%%",
-        startangle=140,
-        textprops={"color": "#cce", "fontsize": 9},
-        wedgeprops={"edgecolor": "#0f0f1a", "linewidth": 2},
-    )
-    for at in autotexts:
-        at.set_fontsize(8)
-        at.set_color("#fff")
+    box_w, box_h = 0.85, 0.6
+    y = 0.2
 
-    ax2.set_title("Inference compute breakdown", color="#cce", fontsize=10, pad=12)
-    fig2.tight_layout()
+    for i, (name, val, col) in enumerate(zip(components, sizes, colors_2)):
+        x_2 = i + 0.075
 
+        rect = FancyBboxPatch(
+            (x_2, y),
+            box_w,
+            box_h,
+            boxstyle="round,pad=0.02,rounding_size=0.05",
+            linewidth=2,
+            edgecolor=col,
+            facecolor="#141426",
+        )
+        ax2.add_patch(rect)
+
+        ax2.text(
+            x_2 + box_w / 2,
+            y + box_h * 0.65,
+            name,
+            ha="center",
+            va="center",
+            color="#cce",
+            fontsize=9,
+        )
+
+        ax2.text(
+            x_2 + box_w / 2,
+            y + box_h * 0.30,
+            f"{val}%",
+            ha="center",
+            va="center",
+            color="#ffffff",
+            fontsize=11,
+            fontweight="bold",
+        )
+
+    plt.tight_layout()
+
+    return (fig2,)
+
+
+@app.cell(hide_code=True)
+def _(fig2, mo):
     mo.vstack(
         [
             mo.md("## Computational Cost: Almost Free"),
@@ -1258,14 +1354,57 @@ def _(mo, plt):
                     mo.vstack(
                         [
                             mo.as_html(fig2),
+                            mo.md("""
+                            One of the most striking claims in the paper: the SSM branch contributes **less than 2%** of total inference compute.""")
                         ]
                     ),
                     mo.vstack(
                         [
                             mo.md("""
-                One of the most striking claims in the paper: the SSM branch
-                contributes **less than 2%** of total inference compute.
+            
 
+                The reason is architectural. At inference time, the Mamba SSM
+                processes each new frame in a single recurrent step — no
+                attention over the full history, no growing KV cache:
+
+                $$h_t = Ah_{t-1} + Bf_t \\quad \\text{(one matrix multiply)}$$
+
+                The diffusion model (DIAMOND) does the heavy lifting: it runs
+                a full UNet denoising pass for each generated frame.
+
+                This means StateSpaceDiffuser is essentially a **free upgrade**
+                over the diffusion-only baseline — you get long-term memory
+                at negligible additional cost.
+                """),
+                        ],
+                        gap=1,
+                    ),
+                ],
+                widths=[0.45, 0.55],
+                gap=2,
+            ),
+        ],
+        gap=1,
+    )
+    return
+
+
+@app.cell
+def _(fig2, mo):
+    mo.vstack(
+        [
+            mo.md("## Computational Cost: Almost Free"),
+            mo.hstack(
+                [
+                    mo.vstack(
+                        [
+                            mo.as_html(fig2),
+                            mo.md("""One of the most striking claims in the paper: the SSM branch contributes **less than 2%** of total inference compute."""),
+                        ]
+                    ),
+                    mo.vstack(
+                        [
+                            mo.md("""
                 The reason is architectural. At inference time, the Mamba SSM
                 processes each new frame in a single recurrent step — no
                 attention over the full history, no growing KV cache:
@@ -1287,8 +1426,9 @@ def _(mo, plt):
                 """),
                                 kind="success",
                             ),
+                        
                         ],
-                        gap=1,
+                        gap=0,
                     ),
                 ],
                 widths=[0.45, 0.55],
@@ -1300,7 +1440,7 @@ def _(mo, plt):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.vstack(
         [
@@ -1399,7 +1539,7 @@ def _(mo):
                     mo.vstack(
                         [
                             mo.md("""
-                ### The story in three acts
+                ### Three main takeaways of the paper:
 
                 **Problem.** Diffusion world models forget everything beyond
                 a short window of $K$ frames, causing temporal drift on
@@ -1449,6 +1589,7 @@ def _(mo):
 def _():
     import matplotlib.pyplot as plt
     import matplotlib
+    from matplotlib.patches import FancyBboxPatch
 
     import marimo as mo
     import numpy as np
@@ -1476,6 +1617,7 @@ def _():
         Arrow,
         DOWN,
         FadeIn,
+        FancyBboxPatch,
         GRAY,
         GREEN,
         LEFT,
