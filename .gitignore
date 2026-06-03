@@ -88,4 +88,4 @@ wandb
 .pi-lens/
 
 
-partial_movie_files/
+**/partial_movie_files/
