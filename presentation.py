@@ -30,11 +30,9 @@ with app.setup:
     )
     from manim import config, tempconfig
 
-    import logging
     import importlib
     from pathlib import Path
 
-    logging.getLogger("manim").setLevel(logging.WARNING)
 
 
 @app.cell
@@ -91,8 +89,8 @@ def _():
     return
 
 
-app._unparsable_cell(
-    r"""
+@app.cell
+def _():
     import world_model
 
     importlib.reload(world_model)
@@ -100,10 +98,8 @@ app._unparsable_cell(
     scene_world_model = world_model.WorldModelAnimation()
     _scene_world_model = scene_world_model.render()
 
-    video_world_model = 
-    """,
-    name="_"
-)
+    video_world_model = mo.video(src=str(scene_world_model.renderer.file_writer.movie_file_path))
+    return (video_world_model,)
 
 
 @app.cell(hide_code=True)
