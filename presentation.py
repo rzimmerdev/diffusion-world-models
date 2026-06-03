@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.23.4"
+__generated_with = "0.23.8"
 app = marimo.App(
     width="full",
     layout_file="layouts/presentation.slides.json",
@@ -32,7 +32,6 @@ with app.setup:
 
     import importlib
     from pathlib import Path
-
 
 
 @app.cell
@@ -777,70 +776,22 @@ def _():
 
 @app.cell
 def _():
-    matplotlib.rcParams.update(
-        {
-            "font.family": "monospace",
-            "axes.facecolor": "#0f0f1a",
-            "figure.facecolor": "#0f0f1a",
-            "axes.edgecolor": "#334",
-            "text.color": "#dde",
-            "axes.labelcolor": "#dde",
-            "xtick.color": "#889",
-            "ytick.color": "#889",
-            "axes.grid": True,
-            "grid.color": "#223",
-            "grid.linestyle": "--",
-        }
+    from charts.psnr import PSNRBarChart
+    psnr_chart = PSNRBarChart(
+        models=["DIAMOND", "SSVM", "SSD (ours)"],
+        colors=["#e05c5c", "#5cb8e0", "#5ce08a"],
+        ctx16_avg=[27.13, 33.40, 41.01],
+        ctx16_fin=[25.44, 33.17, 40.55],
+        ctx50_avg=[26.13, 32.64, 39.68],
+        ctx50_fin=[25.15, 32.44, 39.32],
     )
 
-    # Data from Table 1
-    models = ["DIAMOND", "SSVM", "SSD (ours)"]
-    colors = ["#e05c5c", "#5cb8e0", "#5ce08a"]
-
-    ctx16_avg = [27.13, 33.40, 41.01]
-    ctx16_fin = [25.44, 33.17, 40.55]
-    ctx50_avg = [26.13, 32.64, 39.68]
-    ctx50_fin = [25.15, 32.44, 39.32]
-
-    fig, axes = plt.subplots(1, 2, figsize=(9, 3.5))
-
-    x = np.arange(len(models))
-    w = 0.35
-
-    for ax, avg, fin, title in [
-        (axes[0], ctx16_avg, ctx16_fin, "Context Length 16"),
-        (axes[1], ctx50_avg, ctx50_fin, "Context Length 50"),
-    ]:
-        bars_avg = ax.bar(x - w / 2, avg, w, label="Avg PSNR", color=colors, alpha=0.65)
-        bars_fin = ax.bar(
-            x + w / 2, fin, w, label="Final PSNR", color=colors, alpha=1.0
-        )
-        ax.set_xticks(x)
-        ax.set_xticklabels(models, fontsize=8)
-        ax.set_ylabel("PSNR (dB)")
-        ax.set_title(title, color="#aac", fontsize=10)
-        ax.set_ylim(0, 50)
-        ax.legend(fontsize=7, framealpha=0.2)
-        for bar in list(bars_avg) + list(bars_fin):
-            ax.text(
-                bar.get_x() + bar.get_width() / 2,
-                bar.get_height() + 0.5,
-                f"{bar.get_height():.1f}",
-                ha="center",
-                va="bottom",
-                fontsize=7,
-                color="#dde",
-            )
-
-    fig.suptitle(
-        "MiniGrid Quantitative Results", color="#cce", fontsize=11, y=1.02
-    )
-    fig.tight_layout()
-    return (fig,)
+    psnr = mo.image(psnr_chart.render())
+    return (psnr,)
 
 
 @app.cell(hide_code=True)
-def _(fig):
+def _(psnr):
     mo.vstack(
         [
             mo.md("## Results: MiniGrid Quantitative Evaluation"),
@@ -848,7 +799,7 @@ def _(fig):
                 [
                     mo.vstack(
                         [
-                            mo.as_html(fig),
+                            psnr,
                         ]
                     ),
                     mo.vstack(
@@ -878,7 +829,7 @@ def _(fig):
 
 
 @app.cell
-def _(fig):
+def _(psnr):
     mo.vstack(
         [
             mo.md("## Results: MiniGrid Quantitative Evaluation"),
@@ -886,7 +837,7 @@ def _(fig):
                 [
                     mo.vstack(
                         [
-                            mo.as_html(fig),
+                           psnr,
                             mo.md(
                                 "The combination (SSD) outperforms both components individually, i.e. they are complementary."
                             ),
@@ -1112,57 +1063,15 @@ def _():
 
 @app.cell
 def _():
-    fig2, ax2 = plt.subplots(figsize=(7, 2.5))
-    fig2.patch.set_facecolor("#0f0f1a")
-    ax2.set_facecolor("#0f0f1a")
-    ax2.set_xlim(0, 3)
-    ax2.set_ylim(0, 1)
-    ax2.axis("off")
+    from charts.components import ComponentBreakdownChart
+    components_chart = ComponentBreakdownChart(
+        components=["DIAMOND\n(diffusion)", "SSM\n(Mamba)", "Fusion\nMLP"],
+        sizes=[98, 1.5, 0.5],
+        colors=["#e05c5c", "#5ce08a", "#5cb8e0"],
+    )
 
-    components = ["DIAMOND\n(diffusion)", "SSM\n(Mamba)", "Fusion\nMLP"]
-    sizes = [98, 1.5, 0.5]
-    colors_2 = ["#e05c5c", "#5ce08a", "#5cb8e0"]
-
-    box_w, box_h = 0.85, 0.6
-    y = 0.2
-
-    for i, (name, val, col) in enumerate(zip(components, sizes, colors_2)):
-        x_2 = i + 0.075
-
-        rect = FancyBboxPatch(
-            (x_2, y),
-            box_w,
-            box_h,
-            boxstyle="round,pad=0.02,rounding_size=0.05",
-            linewidth=2,
-            edgecolor=col,
-            facecolor="#141426",
-        )
-        ax2.add_patch(rect)
-
-        ax2.text(
-            x_2 + box_w / 2,
-            y + box_h * 0.65,
-            name,
-            ha="center",
-            va="center",
-            color="#cce",
-            fontsize=9,
-        )
-
-        ax2.text(
-            x_2 + box_w / 2,
-            y + box_h * 0.30,
-            f"{val}%",
-            ha="center",
-            va="center",
-            color="#ffffff",
-            fontsize=11,
-            fontweight="bold",
-        )
-
-    plt.tight_layout()
-    return (fig2,)
+    components = mo.image(components_chart.render())
+    return (components,)
 
 
 @app.cell(hide_code=True)
@@ -1205,7 +1114,7 @@ def _(fig2):
 
 
 @app.cell
-def _(fig2):
+def _(components):
     mo.vstack(
         [
             mo.md("## Computational Cost: Almost Free"),
@@ -1213,7 +1122,7 @@ def _(fig2):
                 [
                     mo.vstack(
                         [
-                            mo.as_html(fig2),
+                            components,
                             mo.md("""
                             An important result is that the SSM branch contributes **less than 2%** of total inference compute."""),
                         ]

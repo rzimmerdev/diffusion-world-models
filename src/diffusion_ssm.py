@@ -112,14 +112,44 @@ def tensor_to_surface(t):
 # ─────────────────────────── Tiny U-Net diffusion model ───────────────────────
 
 
+class GroupNorm4D(nn.Module):
+    """GroupNorm that decomposes to WebGL-compatible 4-D ONNX ops.
+
+    Standard GroupNorm exported to ONNX (opset < 21) uses a 3-D Reshape
+    [N, C, H, W] → [N, G, C//G*H*W] before InstanceNormalization, which
+    the onnxruntime-web WebGL backend rejects (only supports 4-D).
+
+    This implementation reshapes to [N, G, C//G, H*W] (always 4-D) and
+    normalizes with explicit ReduceMean/Var — no InstanceNorm in the graph."""
+
+    def __init__(self, num_groups, num_channels, eps=1e-5):
+        super().__init__()
+        self.num_groups = num_groups
+        self.num_channels = num_channels
+        self.eps = eps
+        self.weight = nn.Parameter(torch.ones(num_channels))
+        self.bias = nn.Parameter(torch.zeros(num_channels))
+
+    def forward(self, x):
+        N, C, H, W = x.shape
+        G = self.num_groups
+        # [N, C, H, W] → [N, G, C//G, H*W]   stays 4-D (WebGL-safe)
+        x = x.reshape(N, G, C // G, -1)
+        mean = x.mean(dim=[2, 3], keepdim=True)
+        var = x.var(dim=[2, 3], keepdim=True, unbiased=False)
+        x = (x - mean) / torch.sqrt(var + self.eps)
+        # [N, G, C//G, H*W] → [N, C, H, W]
+        x = x.reshape(N, C, H, W)
+        return x * self.weight.view(1, C, 1, 1) + self.bias.view(1, C, 1, 1)
+
 class ResBlock(nn.Module):
     def __init__(self, ch):
         super().__init__()
         self.net = nn.Sequential(
-            nn.GroupNorm(min(8, ch), ch),
+            GroupNorm4D(min(8, ch), ch),
             nn.SiLU(),
             nn.Conv2d(ch, ch, 3, padding=1),
-            nn.GroupNorm(min(8, ch), ch),
+            GroupNorm4D(min(8, ch), ch),
             nn.SiLU(),
             nn.Conv2d(ch, ch, 3, padding=1),
         )
