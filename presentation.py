@@ -14,7 +14,7 @@ async with app.setup:
     if sys.platform == "emscripten":
         import micropip
         await micropip.install("bibtexparser")
-    
+
     def render_scene(module_name: str, class_name: str, quality="high_quality"):
         import sys, pathlib, importlib
         if sys.platform == "emscripten":

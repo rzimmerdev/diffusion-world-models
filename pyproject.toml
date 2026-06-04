@@ -2,7 +2,10 @@
 name = "diffusion-world-models"
 version = "0.1.0"
 requires-python = ">=3.11"
-dependencies = [
+dependencies = []
+
+[dependency-groups]
+dev = [
     "marimo==0.23.8",
     "bibtexparser",
 ]

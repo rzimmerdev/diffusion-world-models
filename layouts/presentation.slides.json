@@ -22,7 +22,9 @@
       {},
       {},
       {},
-      {},
+      {
+        "speakerNotes": "The architecture has two key design choices worth pausing on:\n\n # Two-stage training \nThe SSM is trained first (frozen), then the\n    diffusion model is trained on top of its frozen features.\n    Direct end-to-end training is unstable: diffusion gives noisy gradients\n    to the SSM, so the SSM's features never stabilise, and diffusion learns\n    to ignore them entirely.\n\n  # Frame-level (not patch-level) SSM \nUnlike prior work that applies\n    SSMs at the image token level, each *entire frame* is one SSM step.\n    This avoids conflating spatial and temporal dependencies."
+      },
       {
         "speakerNotes": "    The architecture has two key design choices worth pausing on:\n\n    **Two-stage training** - The SSM is trained first (frozen), then the\n    diffusion model is trained on top of its frozen features.\n    Direct end-to-end training is unstable: diffusion gives noisy gradients\n    to the SSM, so the SSM's features never stabilise, and diffusion learns\n    to ignore them entirely.\n\n    **Frame-level (not patch-level) SSM** - Unlike prior work that applies\n    SSMs at the image token level, each *entire frame* is one SSM step.\n    This avoids conflating spatial and temporal dependencies."
       },
@@ -36,7 +38,9 @@
       {},
       {},
       {},
-      {},
+      {
+        "speakerNotes": ""
+      },
       {},
       {},
       {},

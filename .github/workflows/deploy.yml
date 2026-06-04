@@ -22,7 +22,7 @@ jobs:
         uses: astral-sh/setup-uv@v8.0.0
 
       - name: Install the project
-        run: uv sync --locked --no-extra dev
+        run: uv sync --locked --no-group dev
 
       - name: Export slides as WASM
         run: |

@@ -119,13 +119,17 @@ wheels = [
 name = "diffusion-world-models"
 version = "0.1.0"
 source = { virtual = "." }
-dependencies = [
+
+[package.dev-dependencies]
+dev = [
     { name = "bibtexparser" },
     { name = "marimo" },
 ]
 
 [package.metadata]
-requires-dist = [
+
+[package.metadata.requires-dev]
+dev = [
     { name = "bibtexparser" },
     { name = "marimo", specifier = "==0.23.8" },
 ]
