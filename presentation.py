@@ -7,31 +7,44 @@ app = marimo.App(
     css_file="custom.css",
 )
 
-with app.setup:
-    import matplotlib.pyplot as plt
-    import matplotlib
-    from matplotlib.patches import FancyBboxPatch
-
+async with app.setup:
     import marimo as mo
-    import numpy as np
+    import sys
 
-    from manim import Scene, Square, Text, VGroup, Rectangle, FadeIn, Arrow
-    from manim import (
-        UP,
-        RIGHT,
-        DOWN,
-        LEFT,
-        ORIGIN,
-        GRAY,
-        RED,
-        WHITE,
-        YELLOW,
-        GREEN,
-    )
-    from manim import config, tempconfig
+    if sys.platform == "emscripten":
+        import micropip
+        await micropip.install("bibtexparser")
+    
+    def render_scene(module_name: str, class_name: str, quality="high_quality"):
+        import sys, pathlib, importlib
+        if sys.platform == "emscripten":
+            return mo.video(f"media/videos/1080p60/{class_name}.mp4", width=800)
+        from manim import config
+        root = pathlib.Path(__file__).parent
+        out = root / "media" / "videos" / "1080p60" / f"{class_name}.mp4"
+        if not out.exists():
+            mod = importlib.import_module(module_name)
+            scene_cls = getattr(mod, class_name)
+            config.output_file = class_name
+            scene_cls().render()
+        return mo.video(src=str(out))
 
-    import importlib
-    from pathlib import Path
+    def display_chart(module_name: str, class_name: str, name: str, fmt: str = "png", dpi: int = 150, **kwargs):
+        import sys, pathlib
+        out = pathlib.Path("media") / "images" / f"{name}.{fmt}"
+
+        if sys.platform == "emscripten":
+            return mo.image(src=str(out))
+
+        import importlib
+        mod = importlib.import_module(module_name)
+        chart = getattr(mod, class_name)(**kwargs)
+
+        if not out.exists():
+            out.parent.mkdir(parents=True, exist_ok=True)
+            out.write_bytes(chart.render(fmt=fmt, dpi=dpi).read())
+
+        return mo.image(src=str(out))
 
 
 @app.cell
@@ -90,14 +103,7 @@ def _():
 
 @app.cell
 def _():
-    import world_model
-
-    importlib.reload(world_model)
-
-    scene_world_model = world_model.WorldModelAnimation()
-    _scene_world_model = scene_world_model.render()
-
-    video_world_model = mo.video(src=str(scene_world_model.renderer.file_writer.movie_file_path))
+    video_world_model = render_scene("animations.world_model", "WorldModelAnimation")
     return (video_world_model,)
 
 
@@ -141,16 +147,7 @@ def _(video_world_model):
 
 @app.cell
 def _():
-    import compare_diffusion
-
-    importlib.reload(compare_diffusion)
-
-    scene_compare_diffusion = compare_diffusion.CompareDiffusionAnimation()
-    _scene_compare_diffusion = scene_compare_diffusion.render()
-
-    video_compare_diffusion = mo.video(
-        src=str(scene_compare_diffusion.renderer.file_writer.movie_file_path)
-    )
+    video_compare_diffusion = render_scene("animations.compare_diffusion", "CompareDiffusionAnimation")
     return (video_compare_diffusion,)
 
 
@@ -235,16 +232,7 @@ def _():
 
 @app.cell
 def _():
-    import diffusion_denoise
-
-    importlib.reload(diffusion_denoise)
-
-    scene_diffusion_denoise = diffusion_denoise.DiffusionProcessAnimation()
-    _scene_diffusion_denoise = scene_diffusion_denoise.render()
-
-    video_diffusion_denoise = mo.video(
-        src=str(scene_diffusion_denoise.renderer.file_writer.movie_file_path)
-    )
+    video_diffusion_denoise = render_scene("animations.diffusion_denoise", "DiffusionProcessAnimation")
     return (video_diffusion_denoise,)
 
 
@@ -337,14 +325,7 @@ def _():
 
 @app.cell
 def _():
-    import ssm
-
-    importlib.reload(ssm)
-
-    scene_ssm = ssm.SSMAnimation()
-    _scene_ssm = scene_ssm.render()
-
-    video_ssm = mo.video(src=str(scene_ssm.renderer.file_writer.movie_file_path))
+    video_ssm = render_scene("animations.ssm", "SSMAnimation")
     return (video_ssm,)
 
 
@@ -574,17 +555,7 @@ def _():
             mo.md("## Architecture at a Glance"),
             mo.image("media/images/architecture.png", width=800),
             mo.md("""
-        The architecture has two key design choices worth pausing on:
 
-        **Two-stage training** - The SSM is trained first (frozen), then the
-        diffusion model is trained on top of its frozen features.
-        Direct end-to-end training is unstable: diffusion gives noisy gradients
-        to the SSM, so the SSM's features never stabilise, and diffusion learns
-        to ignore them entirely.
-
-        **Frame-level (not patch-level) SSM** - Unlike prior work that applies
-        SSMs at the image token level, each *entire frame* is one SSM step.
-        This avoids conflating spatial and temporal dependencies.
         """),
         ],
         gap=2,
@@ -595,16 +566,7 @@ def _():
 
 @app.cell
 def _():
-    import two_stage
-
-    importlib.reload(two_stage)
-
-    scene_two_stage = two_stage.TwoStageTraining()
-    _scene_two_stage = scene_two_stage.render()
-
-    video_two_stage = mo.video(
-        src=str(scene_two_stage.renderer.file_writer.movie_file_path)
-    )
+    video_two_stage = render_scene("animations.two_stage", "TwoStageTraining")
     return (video_two_stage,)
 
 
@@ -679,16 +641,7 @@ def _(video_two_stage):
 
 @app.cell
 def _():
-    import long_context
-
-    importlib.reload(long_context)
-
-    scene_long_context = long_context.LongContextComparison()
-    _scene_long_context = scene_long_context.render()
-
-    video_long_context = mo.video(
-        src=str(scene_long_context.renderer.file_writer.movie_file_path)
-    )
+    video_long_context = render_scene("animations.long_context", "LongContextComparison")
     return (video_long_context,)
 
 
@@ -776,8 +729,8 @@ def _():
 
 @app.cell
 def _():
-    from charts.psnr import PSNRBarChart
-    psnr_chart = PSNRBarChart(
+    psnr = display_chart(
+        "charts.psnr", "PSNRBarChart", "psnr",
         models=["DIAMOND", "SSVM", "SSD (ours)"],
         colors=["#e05c5c", "#5cb8e0", "#5ce08a"],
         ctx16_avg=[27.13, 33.40, 41.01],
@@ -785,8 +738,6 @@ def _():
         ctx50_avg=[26.13, 32.64, 39.68],
         ctx50_fin=[25.15, 32.44, 39.32],
     )
-
-    psnr = mo.image(psnr_chart.render())
     return (psnr,)
 
 
@@ -1063,19 +1014,17 @@ def _():
 
 @app.cell
 def _():
-    from charts.components import ComponentBreakdownChart
-    components_chart = ComponentBreakdownChart(
+    components = display_chart(
+        "charts.components", "ComponentBreakdownChart", "components",
         components=["DIAMOND\n(diffusion)", "SSM\n(Mamba)", "Fusion\nMLP"],
         sizes=[98, 1.5, 0.5],
         colors=["#e05c5c", "#5ce08a", "#5cb8e0"],
     )
-
-    components = mo.image(components_chart.render())
     return (components,)
 
 
 @app.cell(hide_code=True)
-def _(fig2):
+def _(components):
     mo.vstack(
         [
             mo.md("## Computational Cost: Almost Free"),
@@ -1083,7 +1032,7 @@ def _(fig2):
                 [
                     mo.vstack(
                         [
-                            mo.as_html(fig2),
+                            components,
                             mo.md("""
                             An important result is that the SSM branch contributes **less than 2%** of total inference compute."""),
                         ]
@@ -1334,6 +1283,8 @@ def _():
                     diffusion world model persistent long-term memory, enabling it to
                     maintain temporal coherence for an order of magnitude more steps
                     than a diffusion-only baseline.
+
+                    [Interactive Game to view StateSpaceDiffuser](game/)
         """),
                 kind="success",
             ),
@@ -1372,6 +1323,77 @@ def _():
         ],
         gap=1,
     )
+    return
+
+
+@app.cell
+def bibliography_slide_1():
+    def _():
+        import bibtexparser
+
+        ENTRIES_PER_PAGE = 7
+
+        def clean(s):
+            return s.replace("{", "").replace("}", "").replace("\n", " ")
+
+        import sys, io
+        if sys.platform == "emscripten":
+            from pyodide.http import open_url
+            _bib_text = open_url("references.bib").read()
+        else:
+            with open("references.bib") as f:
+                _bib_text = f.read()
+        db = bibtexparser.load(io.StringIO(_bib_text))
+
+        all_entries = list(enumerate(db.entries, 1))
+        lines = ["# References\n"]
+        for i, entry in all_entries[:ENTRIES_PER_PAGE]:
+            authors = clean(entry.get("author", ""))
+            year = clean(entry.get("year", ""))
+            title = clean(entry.get("title", ""))
+            venue = clean(entry.get("journal") or entry.get("booktitle") or "")
+            lines.append(f"**[{i}]** {authors} ({year}). *{title}*. {venue}.\n")
+
+        return mo.vstack([mo.md("\n".join(lines))], align="start")
+
+    _()
+    return
+
+
+@app.cell
+def bibliography_slide_2():
+    def _():
+        import bibtexparser
+
+        ENTRIES_PER_PAGE = 7
+
+        def clean(s):
+            return s.replace("{", "").replace("}", "").replace("\n", " ")
+
+        import sys, io
+        if sys.platform == "emscripten":
+            from pyodide.http import open_url
+            _bib_text = open_url("references.bib").read()
+        else:
+            with open("references.bib") as f:
+                _bib_text = f.read()
+        db = bibtexparser.load(io.StringIO(_bib_text))
+
+        all_entries = list(enumerate(db.entries, 1))
+        page_entries = all_entries[ENTRIES_PER_PAGE : ENTRIES_PER_PAGE * 2]
+        mo.stop(not page_entries)
+
+        lines = ["# References (cont.)\n"]
+        for i, entry in page_entries:
+            authors = clean(entry.get("author", ""))
+            year = clean(entry.get("year", ""))
+            title = clean(entry.get("title", ""))
+            venue = clean(entry.get("journal") or entry.get("booktitle") or "")
+            lines.append(f"**[{i}]** {authors} ({year}). *{title}*. {venue}.\n")
+
+        return mo.vstack([mo.md("\n".join(lines))], align="start")
+
+    _()
     return
 
 
