@@ -399,11 +399,86 @@ document.getElementById('onnx-file').addEventListener('change', async e => {
   try {
     const buf = await file.arrayBuffer();
     await loadModel(buf);
+    document.getElementById('loader-msg').textContent = `Loaded ${file.name}`;
   } catch (err) {
     document.getElementById('st-model').textContent = 'error';
     document.getElementById('st-model').className   = 'err';
     console.error(err);
+    document.getElementById('loader-msg').textContent = `Failed to load ${file.name}`;
   }
+});
+// ── Model auto-detection ──────────────────────────────────────────────────────
+const MODEL_FILES = ['world_model.onnx', 'state_world_model.onnx'];
+
+async function probeModel(url) {
+  try {
+    const resp = await fetch(url, { method: 'HEAD' });
+    return resp.ok;
+  } catch {
+    return false;
+  }
+}
+
+async function loadModelFromUrl(url) {
+  const elModel = document.getElementById('st-model');
+  elModel.textContent = 'loading…';
+  elModel.className   = 'loading';
+  try {
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const buf = await resp.arrayBuffer();
+    await loadModel(buf);
+    document.getElementById('loader-msg').textContent =
+      `Loaded ${url.split('/').pop()}`;
+  } catch (err) {
+    elModel.textContent = 'error';
+    elModel.className   = 'err';
+    console.error(err);
+    document.getElementById('loader-msg').textContent =
+      `Failed to load ${url.split('/').pop()}`;
+  }
+}
+
+async function initModelDetection() {
+  const select   = document.getElementById('model-select');
+  const uploadRow = document.getElementById('upload-row');
+  const loaderMsg = document.getElementById('loader-msg');
+
+  // Probe all known models in parallel
+  const results = await Promise.all(
+    MODEL_FILES.map(async (name) => {
+      const ok = await probeModel(name);
+      return { name, ok };
+    })
+  );
+
+  const found = results.filter(r => r.ok);
+
+  if (found.length > 0) {
+    // Populate dropdown with detected models
+    select.style.display = '';
+    for (const { name } of found) {
+      const opt = document.createElement('option');
+      opt.value = name;
+      opt.textContent = name;
+      select.appendChild(opt);
+    }
+
+    if (found.length === 1) {
+      loaderMsg.textContent = `Found ${found[0].name} — select to load, or upload below.`;
+    } else {
+      loaderMsg.textContent = 'Multiple models detected — choose one.';
+    }
+  } else {
+    loaderMsg.textContent = 'No models detected. Upload your .onnx file below.';
+  }
+}
+
+// ── Wire select change → fetch model from URL ─────────────────────────────────
+document.getElementById('model-select').addEventListener('change', async e => {
+  const name = e.target.value;
+  if (!name) return;
+  await loadModelFromUrl(name);
 });
 
 // ── steps slider ────────────────────────────────────────────────────────────
@@ -414,4 +489,5 @@ document.getElementById('steps-slider').addEventListener('input', e => {
 // ═══════════════════════════════════════════════════════════════════════════
 // Boot
 // ═══════════════════════════════════════════════════════════════════════════
+initModelDetection();
 resetPlayer();
