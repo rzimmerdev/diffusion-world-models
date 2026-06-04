@@ -408,7 +408,7 @@ document.getElementById('onnx-file').addEventListener('change', async e => {
   }
 });
 // ── Model auto-detection ──────────────────────────────────────────────────────
-const MODEL_FILES = ['world_model.onnx', 'state_world_model.onnx'];
+const MODEL_FILES = ['world_model.onnx', 'ssm_world_model.onnx'];
 
 async function probeModel(url) {
   try {

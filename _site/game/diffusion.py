@@ -128,6 +128,93 @@ class ResBlock(nn.Module):
         return x + self.net(x)
 
 
+# ─────────────────────────── SSM Block ─────────────────────────────────────
+
+
+class BidirectionalScan(nn.Module):
+    """Parallel prefix-sum SSM scan along one spatial axis, bidirectional.
+
+    Uses cumprod/cumsum for the parallel scan — all ops decompose to ONNX.
+    """
+
+    def __init__(self, dim, d_state=8):
+        super().__init__()
+        self.d_state = d_state
+        self.A_log = nn.Parameter(torch.randn(d_state) * 0.1)
+        # Input projection → [B_fwd, C_fwd, Δ_fwd, B_rev, C_rev, Δ_rev]
+        self.in_proj = nn.Conv1d(dim, d_state * 6, 1)
+        self.out_proj = nn.Conv1d(d_state * 2, dim, 1)
+
+    @staticmethod
+    def _scan(proj, A_log):
+        """proj: (B, d_state*3, L) → (B, d_state, L)"""
+        Bx, Cx, delta = proj.chunk(3, dim=1)
+
+        A = -torch.exp(A_log).view(1, -1, 1)         # (1, d_state, 1)
+        delta = F.softplus(delta)                      # (B, d_state, L)
+
+        A_bar  = torch.exp(delta * A)                  # (B, d_state, L)
+        Bx_bar = delta * Bx                            # discretised input
+
+        # Parallel prefix scan via cumsum-log (no CumProd — ONNX opset 14 compat)
+        # A_prefix[t] = Π_{i=1}^{t} A_bar[i] = exp(Σ_{i=1}^{t} log(A_bar[i]))
+        log_A_bar = torch.log(A_bar.clamp(min=1e-8))
+        log_A_prefix = torch.cumsum(log_A_bar, dim=-1)
+        A_prefix = torch.exp(log_A_prefix)             # (B, d_state, L)
+        A_prefix_safe = A_prefix.clamp(min=1e-8)
+        h = A_prefix_safe * torch.cumsum(Bx_bar / A_prefix_safe, dim=-1)
+        return h * Cx                                  # (B, d_state, L)
+
+    def forward(self, x):
+        # x: (B, C, L) — sequence along one spatial axis
+        proj = self.in_proj(x)                         # (B, d_state*6, L)
+        fwd_proj, rev_proj = proj.chunk(2, dim=1)      # each (B, d_state*3, L)
+
+        fwd_out = self._scan(fwd_proj, self.A_log)              # forward
+        rev_out = self._scan(rev_proj.flip(-1), self.A_log).flip(-1)  # reverse
+
+        merged = torch.cat([fwd_out, rev_out], dim=1)  # (B, d_state*2, L)
+        return self.out_proj(merged)                   # (B, C, L)
+
+
+class SSMBlock(nn.Module):
+    """2-D SSM block — scans independently along H and W, merges with gating."""
+
+    def __init__(self, dim, d_state=8):
+        super().__init__()
+        self.norm = GroupNorm4D(min(8, dim), dim)
+        self.scan_h = BidirectionalScan(dim, d_state)
+        self.scan_w = BidirectionalScan(dim, d_state)
+        self.out_proj = nn.Conv2d(dim * 2, dim, 1)
+        self.gate = nn.Sequential(
+            nn.Conv2d(dim, dim, 1),
+            nn.SiLU(),
+        )
+
+    def forward(self, x):
+        # x: (B, C, H, W)
+        shortcut = x
+        x_n = self.norm(x)
+        B, C, H, W = x_n.shape
+
+        # Scan along H — each column independently
+        x_h = x_n.permute(0, 3, 1, 2).reshape(B * W, C, H)     # (B*W, C, H)
+        h_out = self.scan_h(x_h)                                 # (B*W, C, H)
+        h_out = h_out.reshape(B, W, C, H).permute(0, 2, 3, 1)  # (B, C, H, W)
+
+        # Scan along W — each row independently
+        x_w = x_n.permute(0, 2, 1, 3).reshape(B * H, C, W)     # (B*H, C, W)
+        w_out = self.scan_w(x_w)                                 # (B*H, C, W)
+        w_out = w_out.reshape(B, H, C, W).permute(0, 2, 1, 3)  # (B, C, H, W)
+
+        merged = torch.cat([h_out, w_out], dim=1)               # (B, 2C, H, W)
+        out = self.out_proj(merged)                              # (B, C, H, W)
+
+        gate = self.gate(shortcut)
+        return shortcut + out * gate
+
+
+
 class DiffusionWorldModel(nn.Module):
     """
     Input:  context (CONTEXT_LEN × 3 channels) + noisy frame (3 ch) + action (4 ch one-hot) + timestep emb
@@ -198,6 +285,22 @@ class DiffusionWorldModel(nn.Module):
         d2 = self.dec2(torch.cat([d3, e2], dim=1))
         return self.out(torch.cat([d2, e1], dim=1))
 
+
+
+class DiffusionSSMModel(DiffusionWorldModel):
+    """SSM variant — replaces U-Net bottleneck with state-space scan blocks.
+
+    Inherits encoder/decoder/skip connections from DiffusionWorldModel;
+    only the bottleneck changes. Same input/output signature → same ONNX export.
+    """
+
+    def __init__(self, context_len=CONTEXT_LEN, base_ch=16, d_state=8):
+        super().__init__(context_len, base_ch)
+        # Replace bottleneck ResBlocks with SSM blocks
+        self.bot = nn.Sequential(
+            SSMBlock(base_ch * 4, d_state),
+            SSMBlock(base_ch * 4, d_state),
+        )
 
 # ─────────────────────────── ONNX export wrapper ──────────────────────────────
 
@@ -313,16 +416,17 @@ def train_on_replay(model, optimizer, replay, device, steps=50):
     return total_loss / steps
 
 
-# ─────────────────────────── ONNX export ──────────────────────────────────────
+# ─────────────────────────── Training loop ────────────────────────────────────
 
 
 
-def train(checkpoint_path: str | None, out_path: str, device_str: str, steps: int, lr: float):
-    """Train DiffusionWorldModel via random maze exploration (headless)."""
+def train(checkpoint_path: str | None, out_path: str, device_str: str, steps: int, lr: float, ssm: bool = False):
+    """Train DiffusionWorldModel (or its SSM variant) via random maze exploration (headless)."""
     device = torch.device(device_str)
     print(f"Using device: {device}")
 
-    model = DiffusionWorldModel(CONTEXT_LEN).to(device)
+    ModelCls = DiffusionSSMModel if ssm else DiffusionWorldModel
+    model = ModelCls(CONTEXT_LEN).to(device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=lr)
 
     if checkpoint_path:
@@ -341,14 +445,15 @@ def train(checkpoint_path: str | None, out_path: str, device_str: str, steps: in
     ctx_window = collections.deque(maxlen=CONTEXT_LEN)
     total_step = 0
 
-    for epoch in range(max(1, steps // 800)):
+    while total_step < steps:
         maze = generate_maze(COLS, ROWS)
         player = list(start_pos)
         ctx_window.clear()
         for _ in range(CONTEXT_LEN):
             ctx_window.append(maze_to_tensor(maze, player, goal_pos))
 
-        for s in range(800):
+        epoch_steps = min(800, steps - total_step)
+        for _ in range(epoch_steps):
             total_step += 1
             a_idx = random.randint(0, 3)
             dr, dc = DIR_MAP[a_idx]
@@ -397,9 +502,10 @@ def train(checkpoint_path: str | None, out_path: str, device_str: str, steps: in
 
 
 # ─────────────────────────── ONNX export ──────────────────────────────────────
-def export(checkpoint_path: str | None, out_path: str):
+def export(checkpoint_path: str | None, out_path: str, ssm: bool = False):
     device = torch.device("cpu")  # export on CPU for portability
-    model = DiffusionWorldModel(CONTEXT_LEN).to(device)
+    ModelCls = DiffusionSSMModel if ssm else DiffusionWorldModel
+    model = ModelCls(CONTEXT_LEN).to(device)
 
     if checkpoint_path:
         state = torch.load(checkpoint_path, map_location=device)
@@ -467,6 +573,8 @@ if __name__ == "__main__":
                          help="Exploration steps")
     p_train.add_argument("--lr", type=float, default=3e-4,
                          help="Learning rate")
+    p_train.add_argument("--ssm", action="store_true",
+                         help="Train SSM variant (state space model bottleneck)")
 
     # export
     p_export = sub.add_parser("export", help="Export to ONNX")
@@ -474,9 +582,11 @@ if __name__ == "__main__":
                           help="Path to model checkpoint (.pt)")
     p_export.add_argument("--out", type=str, default="world_model.onnx",
                           help="Output .onnx path")
+    p_export.add_argument("--ssm", action="store_true",
+                          help="Export SSM variant (use with SSM checkpoint)")
 
     args = parser.parse_args()
     if args.cmd == "train":
-        train(args.checkpoint, args.out, args.device, args.steps, args.lr)
+        train(args.checkpoint, args.out, args.device, args.steps, args.lr, args.ssm)
     elif args.cmd == "export":
-        export(args.checkpoint, args.out)
+        export(args.checkpoint, args.out, args.ssm)
