@@ -18,7 +18,8 @@ def make_ssm_block(label="SSM\n(Mamba)", color=SSM_COLOR, border=BORDER_ACTIVE):
         fill_color=color, fill_opacity=0.85,
         stroke_color=border, stroke_width=3,
     )
-    lbl = Text(label, font_size=22, color=WHITE, weight=BOLD).move_to(box)
+    tex_label = label.replace("\n", " \\\\ ")
+    lbl = Tex(r"\textbf{" + tex_label + "}", font_size=22, color=WHITE).move_to(box)
     return VGroup(box, lbl)
 
 
@@ -32,7 +33,7 @@ def make_sequence(n=7, long=True):
         for i in range(n)
     ]).arrange(RIGHT, buff=0.06)
     if long:
-        dots = Text("…", font_size=20).next_to(squares, RIGHT, buff=0.06)
+        dots = Tex(r"\text{…}", font_size=20).next_to(squares, RIGHT, buff=0.06)
         return VGroup(squares, dots)
     return squares
 
@@ -66,7 +67,7 @@ def make_unet_block(active=False):
         stroke_color=color if active else GREY_B,
         stroke_width=4 if active else 2,
     )
-    lbl = Text("Diffusion\nUNet", font_size=22, color=WHITE, weight=BOLD).move_to(box)
+    lbl = Tex(r"\textbf{Diffusion \\ UNet}", font_size=22, color=WHITE).move_to(box)
     return VGroup(box, lbl)
 
 
@@ -87,9 +88,9 @@ class TwoStageTraining(Scene):
 
     # ── Title ────────────────────────────────────────────────────────────────
     def _show_title(self):
-        title = Text(
-            "Two-Stage World-Model Training",
-            font_size=32, color=WHITE, weight=BOLD,
+        title = Tex(
+            r"\textbf{Two-Stage World-Model Training}",
+            font_size=32, color=WHITE,
         ).to_edge(UP, buff=0.3)
         self.play(Write(title), run_time=0.8)
         self.wait(0.3)
@@ -100,12 +101,12 @@ class TwoStageTraining(Scene):
         # --- Panel background ---
         panel = self._make_panel(LEFT * 3.3)
 
-        stage_lbl = Text("Stage 1", font_size=26, color=BLUE_B, weight=BOLD)\
+        stage_lbl = Tex(r"\textbf{Stage 1}", font_size=26, color=BLUE_B)\
             .move_to(panel).align_to(panel, UP).shift(DOWN * 0.25)
 
-        subtitle = Text(
-            "Train the Long-Context Branch",
-            font_size=16, color=GREY_A,
+        subtitle = Tex(
+            r"\text{Train the Long-Context Branch}",
+            font_size=20, color=GREY_A,
         ).next_to(stage_lbl, DOWN, buff=0.12)
 
         # --- Input sequence ---
@@ -113,7 +114,7 @@ class TwoStageTraining(Scene):
             .scale(0.9)\
             .move_to(panel).shift(UP * 1.0)
 
-        seq_lbl = Tex(r"\text{long sequence }(T = 50)", font_size=14, color=GREY_A)\
+        seq_lbl = Tex(r"\text{long sequence }(T = 50)", font_size=18, color=GREY_A)\
             .next_to(seq, UP, buff=0.12)
 
         # --- Arrow: sequence → SSM ---
@@ -134,7 +135,7 @@ class TwoStageTraining(Scene):
             buff=0.05, color=YELLOW_B, stroke_width=3,
         )
 
-        out_lbl = Text("f̂_{t+1}", font_size=18, color=YELLOW_B)\
+        out_lbl = MathTex(r"\hat{f}_{t+1}", font_size=22, color=YELLOW_B)\
             .next_to(out_dot, RIGHT, buff=0.15)
 
         # --- Loss arrow (downward) ---
@@ -176,12 +177,12 @@ class TwoStageTraining(Scene):
         # ---- Build Stage-2 panel (right side) first, then reveal ----
         panel2 = self._make_panel(RIGHT * 3.3)
 
-        stage_lbl2 = Text("Stage 2", font_size=26, color=ORANGE, weight=BOLD)\
+        stage_lbl2 = Tex(r"\textbf{Stage 2}", font_size=26, color=ORANGE)\
             .move_to(panel2).align_to(panel2, UP).shift(DOWN * 0.25)
 
-        subtitle2 = Text(
-            "Train the Generative Branch",
-            font_size=16, color=GREY_A,
+        subtitle2 = Tex(
+            r"\text{Train the Generative Branch}",
+            font_size=20, color=GREY_A,
         ).next_to(stage_lbl2, DOWN, buff=0.12)
 
         # Short input sequence (length 4)
@@ -189,7 +190,7 @@ class TwoStageTraining(Scene):
             .scale(0.9)\
             .move_to(panel2).shift(UP * 1.15)
 
-        seq2_lbl = Tex(r"\text{short sequence }(T = 4)", font_size=14, color=GREY_A)\
+        seq2_lbl = Tex(r"\text{short sequence }(T = 4)", font_size=18, color=GREY_A)\
             .next_to(seq2, UP, buff=0.12)
 
         # Frozen SSM block
@@ -201,7 +202,7 @@ class TwoStageTraining(Scene):
         lock = make_padlock(scale=0.55)\
             .next_to(ssm_frozen, UR, buff=-0.15)
 
-        frozen_lbl = Text("frozen", font_size=14, color=GREY_B, slant=ITALIC)\
+        frozen_lbl = Tex(r"\textit{frozen}", font_size=18, color=GREY_B)\
             .next_to(ssm_frozen, LEFT, buff=0.12)
 
         # SSM → feature output
@@ -213,7 +214,7 @@ class TwoStageTraining(Scene):
             buff=0.05, color=GREY_B, stroke_width=2.5,
         )
 
-        feat_lbl = Text("context features", font_size=13, color=GREY_B)\
+        feat_lbl = Tex(r"\text{context features}", font_size=17, color=GREY_B)\
             .next_to(feat_dot, RIGHT, buff=0.12)
 
         # Diffusion UNet (highlighted)
@@ -259,7 +260,7 @@ class TwoStageTraining(Scene):
                  color=RED, stroke_width=4),
         )
 
-        grad_lbl = Text("∇ gradient flow", font_size=13, color=GRAD_COLOR)\
+        grad_lbl = Tex(r"$\nabla$ \text{gradient flow}", font_size=17, color=GRAD_COLOR)\
             .next_to(grad1, LEFT, buff=0.1)
 
         # ---- Animate Stage 2 ----
@@ -318,8 +319,8 @@ class TwoStageTraining(Scene):
         )
 
         # Final callout label
-        blocked_note = Text(
-            "gradients\nblocked", font_size=13, color=GRAD_COLOR,
+        blocked_note = Tex(
+            r"\text{gradients blocked}", font_size=17, color=GRAD_COLOR,
         ).next_to(stop_cross, DL, buff=0.15)
         self.play(FadeIn(blocked_note), run_time=0.4)
 

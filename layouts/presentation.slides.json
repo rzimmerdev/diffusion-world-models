@@ -25,11 +25,11 @@
       {
         "speakerNotes": "The presented paper uses a UNet-based diffusion model, called DIAMOND as its diffusion backbone model designed for sequential visual prediction, generating frames with only 3 denoising iterations."
       },
+      {},
       {
         "speakerNotes": "Diffusion models are excellent at generating high-fidelity images but carry no persistent state between frames beyond their short context window.",
         "type": "fragment"
       },
-      {},
       {},
       {},
       {
@@ -60,9 +60,6 @@
       },
       {
         "speakerNotes": "So, for the architecture, two design choices are extremely important:\n\n1. The first is the Two-Stage training \nThe SSM is trained first, then the diffusion model is trained on top of its frozen features. The authors state that direct end-to-end training is unstable: diffusion gives noisy gradients to the SSM, so the SSM's features never stabilise, and diffusion learns to ignore them entirely.\n\n2. Second is the Frame-level (not patch-level) SSM \nUnlike prior work that applies SSMs at the image token level (patches in the image), each *complete image frame* is one SSM step. The authors do this to avoid mixing spatial and temporal dependencies."
-      },
-      {
-        "speakerNotes": "    The architecture has two key design choices worth pausing on:\n\n    **Two-stage training** - The SSM is trained first (frozen), then the\n    diffusion model is trained on top of its frozen features.\n    Direct end-to-end training is unstable: diffusion gives noisy gradients\n    to the SSM, so the SSM's features never stabilise, and diffusion learns\n    to ignore them entirely.\n\n    **Frame-level (not patch-level) SSM** - Unlike prior work that applies\n    SSMs at the image token level, each *entire frame* is one SSM step.\n    This avoids conflating spatial and temporal dependencies."
       },
       {
         "speakerNotes": "So, for the first stage in training.\nThe Mamba SSM is trained on long sequences (authors use a length 50 or 16) to predict next-frame Cosmos features from the full history, and the produced state-space features decode to images and carry important long-range context information.\n\nThen, for the second stage.\nWith the SSM frozen, the diffusion model (namely DIAMOND) is trained on short sequences of length 4, conditioned on frozen SSM features. This makes the diffusion model learn to render high-quality images while using reliable long-context from Stage 1.\n"

@@ -77,13 +77,11 @@ from manim import (
     Circumscribe,
 )
 
-from manim import Square, Text, Rectangle, Circle, Arrow, RoundedRectangle, SurroundingRectangle, MathTex, Dot
-
-from manim import UP, RIGHT, DOWN, LEFT, ORIGIN
-
-from manim import BOLD
 
 from manim import (
+    Square, Text, Rectangle, Circle, Arrow, RoundedRectangle,
+    SurroundingRectangle, MathTex, Tex, Dot,
+    UP, RIGHT, DOWN, LEFT, ORIGIN,
     BLACK, WHITE,
     GRAY, GRAY_A, GRAY_B, GRAY_C, GRAY_D, GRAY_E,
     DARKER_GRAY, DARK_GRAY, LIGHT_GRAY,
@@ -104,11 +102,11 @@ class WorldModelAnimation(Scene):
     # Component builders
     # ══════════════════════════════════════════════════════════════
 
-    def create_title(self) -> Text:
+    def create_title(self) -> Tex:
         """
         Bold title 'World Models' centred at the top of the frame.
         """
-        title = Text("World Models", font_size=46, weight=BOLD, color=WHITE)
+        title = Tex(r"\textbf{World Models}", font_size=46, color=WHITE)
         title.to_edge(UP, buff=0.25)
         return title
 
@@ -141,7 +139,7 @@ class WorldModelAnimation(Scene):
         border = SurroundingRectangle(
             grid_cells, color=BLUE_B, buff=0.13, corner_radius=0.09
         )
-        env_label = Text("Environment", font_size=20, color=BLUE_C)
+        env_label = Tex(r"\text{Environment}", font_size=20, color=BLUE_C)
         env_label.next_to(grid_cells, DOWN, buff=0.18)
 
         full_group = VGroup(border, grid_cells, env_label)
@@ -182,7 +180,7 @@ class WorldModelAnimation(Scene):
         history_box = Rectangle(width=3.0, height=0.88, color=GREEN_D)
         history_box.set_fill(GREEN_E, opacity=0.18)
 
-        title = Text("History", font_size=21, color=GREEN_B, weight=BOLD)
+        title = Tex(r"\textbf{History}", font_size=21, color=GREEN_B)
         title.next_to(history_box, UP, buff=0.12)
 
         notation = MathTex(
@@ -226,7 +224,7 @@ class WorldModelAnimation(Scene):
         f_label = MathTex(r"\mathcal{F}", font_size=54, color=ORANGE)
         f_label.move_to(wm_box.get_center())
 
-        sub_label = Text("World Model", font_size=18, color=ORANGE)
+        sub_label = Tex(r"\text{World Model}", font_size=18, color=ORANGE)
         sub_label.next_to(wm_box, DOWN, buff=0.14)
 
         full_group = VGroup(wm_box, f_label, sub_label)
@@ -244,7 +242,7 @@ class WorldModelAnimation(Scene):
         pred_box = Rectangle(width=1.7, height=1.1, color=PURPLE_B)
         pred_box.set_fill(PURPLE_E, opacity=0.30)
 
-        title = Text("Prediction", font_size=21, color=PURPLE_B, weight=BOLD)
+        title = Tex(r"\textbf{Prediction}", font_size=21, color=PURPLE_B)
         title.next_to(pred_box, UP, buff=0.12)
 
         pred_tex = MathTex(r"\hat{o}_{t+1}", font_size=34, color=WHITE)
@@ -278,17 +276,18 @@ class WorldModelAnimation(Scene):
         # STEP 2 — History box accumulates observation frames
         # ──────────────────────────────────────────────────────────
         history_group, history_box = self.create_history_box()
-        # Place below-and-right of the grid world
-        history_group.next_to(grid_group, RIGHT, buff=0.85).shift(DOWN * 0.85)
+        # Place to the right of the grid world, vertically aligned
+        history_group.next_to(grid_group, RIGHT, buff=0.85)
 
         self.play(FadeIn(history_group), run_time=0.6)
 
         # Three mini-frames appear one by one; each one also flashes
         # the matching grid cell (row 2, cols 1 → 3) to show "sensing"
-        frame_colors = [BLUE_C, TEAL_C, GREEN_C]
+        frame_colors = [ORANGE, YELLOW_C, RED_C]       # History mini-frame colors
+        flash_colors = [BLUE_C, TEAL_C, GREEN_C]        # Environment cell flash colors
         mini_frames = VGroup()
 
-        for i, frame_color in enumerate(frame_colors):
+        for i, (frame_color, flash_color) in enumerate(zip(frame_colors, flash_colors)):
             mf = self.create_mini_frame(color=frame_color)
             if i == 0:
                 # First frame: anchor to left interior of the history box
@@ -301,7 +300,7 @@ class WorldModelAnimation(Scene):
             cell = grid_cells[2 * 5 + (1 + i)]   # row=2, col=1,2,3
             self.play(
                 FadeIn(mf, shift=UP * 0.14),
-                cell.animate.set_fill(frame_color, opacity=0.55),
+                cell.animate.set_fill(flash_color, opacity=0.55),
                 run_time=0.45,
             )
 
@@ -311,9 +310,7 @@ class WorldModelAnimation(Scene):
         # STEP 3 — World Model F block
         # ──────────────────────────────────────────────────────────
         wm_group, wm_box = self.create_world_model_block()
-        # Position: right of history group and shifted upward so the
-        # arrow from history will travel diagonally up (cleaner flow)
-        wm_group.next_to(history_group, RIGHT, buff=1.1).shift(UP * 0.9)
+        wm_group.next_to(history_group, RIGHT, buff=1.1)
 
         self.play(
             DrawBorderThenFill(wm_group[0]),   # orange box
@@ -406,7 +403,7 @@ class WorldModelAnimation(Scene):
         )
 
         # New yellow frame added to history; destination cell flashes
-        new_frame = self.create_mini_frame(color=YELLOW_C)
+        new_frame = self.create_mini_frame(color=YELLOW_D)
         new_frame.next_to(mini_frames[-1], RIGHT, buff=0.10)
         mini_frames.add(new_frame)
 
@@ -424,12 +421,12 @@ class WorldModelAnimation(Scene):
         # Draw attention ring around the F block
         self.play(Circumscribe(wm_group[0], color=ORANGE), run_time=1.20)
 
-        final_msg = Text(
-            "F learns to predict the future from experience",
+        final_msg = Tex(
+            r"\text{F learns to predict the future from experience}",
             font_size=25,
             color=WHITE,
         )
-        final_msg.to_edge(DOWN, buff=0.30)
+        final_msg.to_edge(DOWN, buff=0.60)
         self.play(Write(final_msg), run_time=1.40)
         self.wait(2.0)
 

@@ -98,17 +98,28 @@ def get_observations(prev_pos, new_pos):
 
 
 def build_baseline_return_map(true_observed):
-    """Produces a wrong version of the observed map for the baseline agent."""
+    """Produces a wrong version of the observed map for the baseline agent.
+    Earlier observations (further back in memory) have higher error rates,
+    illustrating the lack of persistent memory."""
     wrong = {}
     all_types = [EMPTY, REWARD, ENEMY, OBSTACLE]
     rng = random.Random(42)
-    for pos, true_type in true_observed.items():
-        # ~60% chance of getting it wrong
-        if rng.random() < 0.6:
+    positions = list(true_observed.keys())  # insertion order = observation order
+    total = len(positions)
+
+    for idx, pos in enumerate(positions):
+        true_type = true_observed[pos]
+        # Error probability decays with recency:
+        #   idx=0   (oldest memory)  → ~95% error
+        #   idx=N-1 (newest memory)  → ~5%  error
+        error_prob = 0.95 - 0.90 * (idx / max(total - 1, 1))
+
+        if rng.random() < error_prob:
             choices = [t for t in all_types if t != true_type]
             wrong[pos] = rng.choice(choices)
         else:
             wrong[pos] = true_type
+
     return wrong
 
 
@@ -421,6 +432,6 @@ class CompareDiffusionAnimation(Scene):
             font_size=20,
             color=WHITE,
         )
-        summary.to_edge(DOWN, buff=0.25)
+        summary.to_edge(DOWN, buff=0.6)
         self.play(Write(summary), run_time=1.0)
         self.wait(2.0)

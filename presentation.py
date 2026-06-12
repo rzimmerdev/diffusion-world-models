@@ -517,6 +517,13 @@ def _():
 
 @app.cell
 def _():
+    video_diffusion_denoise = render_scene("animations.diffusion_denoise", "DiffusionProcessAnimation")
+    video_diffusion_denoise
+    return
+
+
+@app.cell
+def _():
     mo.callout(
                                 mo.center(mo.md("""
                 **Main point:** Diffusion models are excellent at generating
@@ -524,13 +531,6 @@ def _():
                 """)),
                                 kind="info",
                             )
-    return
-
-
-@app.cell
-def _():
-    video_diffusion_denoise = render_scene("animations.diffusion_denoise", "DiffusionProcessAnimation")
-    video_diffusion_denoise
     return
 
 
@@ -725,12 +725,6 @@ def _():
 
 @app.cell
 def _():
-    video_two_stage = render_scene("animations.two_stage", "TwoStageTraining")
-    return (video_two_stage,)
-
-
-@app.cell
-def _():
     training_protocol_0 = mo.vstack(
         [
             mo.hstack(
@@ -825,7 +819,8 @@ def _():
 
 
 @app.cell
-def _(video_two_stage):
+def _():
+    video_two_stage = render_scene("animations.two_stage", "TwoStageTraining")
     video_two_stage
     return
 
