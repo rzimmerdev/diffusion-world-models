@@ -10,24 +10,71 @@
         "type": "slide"
       },
       {},
+      {
+        "speakerNotes": "As most of you will already know from both reading your assigned paper and the previous presentations, a world model is a learned generative system that can predict future observations given past observations and actions. A world model differs from the usual generative model in the sense that it is a model of the environment's dynamic, i.e., what is generated are predictions of the next state in a dynamical system.\n---\nAs the vast range of topics in the assigned papers show, they can be used for a multitude of tasks: autonomous driving, game playing, robotics planning, and virtual interaction. These models are usually trained purely from experience and have no hard-coded physics."
+      },
+      {
+        "speakerNotes": "Even though other approaches exist and show promising and interesting results, even more so for specific task-based approaches, current State-of-the-art world models are either transformers or diffusion models, powerful generative models that produce high-fidelity images. \nMost of you have probably heard of DALL-E, the Stable Diffusion family, Midjourney. These are all examples of diffusion models.\n\nHowever, these have a hard architectural constraint:\nThe diffusion forward pass for world models forces the agent to generate each frame based on a short window of recent history, without any persistent state that carries information across time, called the _context window_\n---\nThis means that the information they see is a filtration on the past K frames, The model does not consider anything before that,. and the information is simply forgotten. \nAs the agent explores and later revisits a location, the model has no memory of what it looked like. As the agent interacts with the environment, the generated scenes will gradually lose coherence with what was observed in the past, leading to what is called **temporal drift**.",
+        "type": "slide"
+      },
+      {
+        "speakerNotes": "The dominant backbone models are usually quadratic in T (e.g., transformers have O(T^2) attention complexity, meaning that doubling the context quadruples the compute. Thus, long context windows quickly become computationally prohibitive for larger models."
+      },
       {},
       {},
-      {},
-      {},
-      {},
-      {},
-      {},
-      {},
-      {},
+      {
+        "speakerNotes": "The presented paper uses a UNet-based diffusion model, called DIAMOND as its diffusion backbone model designed for sequential visual prediction, generating frames with only 3 denoising iterations."
+      },
+      {
+        "speakerNotes": "Diffusion models are excellent at generating high-fidelity images but carry no persistent state between frames beyond their short context window.",
+        "type": "fragment"
+      },
       {},
       {},
       {},
       {
-        "speakerNotes": "The architecture has two key design choices worth pausing on:\n\n # Two-stage training \nThe SSM is trained first (frozen), then the\n    diffusion model is trained on top of its frozen features.\n    Direct end-to-end training is unstable: diffusion gives noisy gradients\n    to the SSM, so the SSM's features never stabilise, and diffusion learns\n    to ignore them entirely.\n\n  # Frame-level (not patch-level) SSM \nUnlike prior work that applies\n    SSMs at the image token level, each *entire frame* is one SSM step.\n    This avoids conflating spatial and temporal dependencies."
+        "type": "fragment"
+      },
+      {
+        "type": "slide",
+        "speakerNotes": "Similar to how recurrent neural networks (RNNs) manage information flow, selective gating allows the model to focus on relevant features while ignoring irrelevant ones. Overall its what enables handling long-term dependencies and improving the model's ability to capture time-based patterns in data."
+      },
+      {
+        "speakerNotes": "The paper uses Mamba which is a SSM variant with selective gating that dynamically decides what information to retain or discard, which allows Mamba to be more expressive over simpler RNNs like LSTMs or GRUs."
+      },
+      {
+        "speakerNotes": "At inference, Mamba processes each new frame in constant time and constant memory, regardless of how long the sequence is."
+      },
+      {},
+      {},
+      {
+        "speakerNotes": "This is the most important slide in the presentation, the main proposed idea of the paper is to use a Mamba SSM to process the entire history of size O(T) and compresses it into a state. \nThat state is then injected into a diffusion model to generate each frame at with a long context through memory and still with high fidelity.\n"
+      },
+      {
+        "type": "slide",
+        "speakerNotes": "Each frame i_t is encoded by the Cosmos tokenizer (scale 16) into a compact feature vector f_t in R^d. The discrete action a_t\u200b indexes a learnable embedding of dimension 16, concatenated with f_t. Compare it to the memory cell in a LSTM, for example.\n\nThe full sequence that Mamba processes is then the concatenation of each frame's feature vector f_t with its corresponding discrete action embedding a_t, the input of pairs [f_1, a_1], ..., [f_T, a_T]. \nThis sequence represents the _how the encoded visual features and actions evolve over time_, and allows the model to capture long-range dependencies across the entire input. The processed outputs \\(\\hat{f}_2, \\ldots, \\hat{f}_{T+1}\\) are the predicted feature vectors for the conditioned on the visual context and actions taken.\n\nThe authors then train it using MSE loss to predict the next Cosmos features, which lets the state encode long-range context. At inference, only the final state h_T matters and it is updated in O(1) per new frame.\n---\n"
+      },
+      {
+        "type": "slide",
+        "speakerNotes": "The DIAMOND diffusion model generates the next frame conditioned on a short window of 4 frames plus the SSM's long-context features f^t.\nProcessing memory and action independently before concatenation was found empirically to work best.\n\nThe two streams are merged via a two-layer MLP with SiLU. Here $e_t$ is the action embedding and $\\\\varepsilon$ is injected noise for robustness:"
+      },
+      {
+        "speakerNotes": "So, for the architecture, two design choices are extremely important:\n\n1. The first is the Two-Stage training \nThe SSM is trained first, then the diffusion model is trained on top of its frozen features. The authors state that direct end-to-end training is unstable: diffusion gives noisy gradients to the SSM, so the SSM's features never stabilise, and diffusion learns to ignore them entirely.\n\n2. Second is the Frame-level (not patch-level) SSM \nUnlike prior work that applies SSMs at the image token level (patches in the image), each *complete image frame* is one SSM step. The authors do this to avoid mixing spatial and temporal dependencies."
       },
       {
         "speakerNotes": "    The architecture has two key design choices worth pausing on:\n\n    **Two-stage training** - The SSM is trained first (frozen), then the\n    diffusion model is trained on top of its frozen features.\n    Direct end-to-end training is unstable: diffusion gives noisy gradients\n    to the SSM, so the SSM's features never stabilise, and diffusion learns\n    to ignore them entirely.\n\n    **Frame-level (not patch-level) SSM** - Unlike prior work that applies\n    SSMs at the image token level, each *entire frame* is one SSM step.\n    This avoids conflating spatial and temporal dependencies."
       },
+      {
+        "speakerNotes": "So, for the first stage in training.\nThe Mamba SSM is trained on long sequences (authors use a length 50 or 16) to predict next-frame Cosmos features from the full history, and the produced state-space features decode to images and carry important long-range context information.\n\nThen, for the second stage.\nWith the SSM frozen, the diffusion model (namely DIAMOND) is trained on short sequences of length 4, conditioned on frozen SSM features. This makes the diffusion model learn to render high-quality images while using reliable long-context from Stage 1.\n"
+      },
+      {
+        "speakerNotes": "So the natural question is, \"Why do the authors suggest freezing the SSM?\"\n\nThe Diffusion's noisy gradients destabilize the SSM, meaning the SSM returns constantly shifting features due to the gradients that pass from the diffusion model. \nIn return, the diffusion process learns to ignore the SSM entirely. Decoupling the two stages by freezing the SSM is meant to solve this. Additionally, it also means the SSM branch can be swapped independently at test time without retraining the (heavier) diffusion model."
+      },
+      {},
+      {},
+      {
+        "speakerNotes": "So, for evaluating how well the long-context memory performs, the authors design an evaluation protocol to stress-test long-term memory.\nThe evaluation loop starts with the agent taking n actions forward, then n mirrored actions backward (turning left becomes turning right, etc.). \nThe second half of the sequence should be identical in content to the first half, meaning the evaluation step is capable of identifying if  the model can recall what it saw up to n steps ago. \n\nThe evaluation metric used is the Peak signal-to-noise ratio (PSNR) on each reverse frame, especially the final frame, which requires recalling the oldest possible memory in frame i_1.\nThe PSNR is just the MSE between a noise-free series (the original observation) and its noisy approximation (the generated series).\n."
+      },
       {},
       {},
       {},
@@ -35,13 +82,19 @@
       {},
       {},
       {},
-      {},
-      {},
+      {
+        "speakerNotes": "This generalisation is not a coincidence. It follows directly from the SSM's computational structure of the recurrence ht=Aht\u22121+Bftht\u200b=Aht\u22121\u200b+Bft\u200b\n, by applying it identically regardless of how long the sequence is. The state simply keeps accumulating and there is no architectural limit on TT\n. The diffusion model, by contrast, was designed for a fixed short context and cannot benefit from a longer history even if one were provided. A clear human preference for SSD, growing stronger the further back in the sequence the recall must reach."
+      },
       {},
       {
         "speakerNotes": ""
       },
       {},
+      {},
+      {},
+      {
+        "type": "fragment"
+      },
       {},
       {},
       {},
@@ -56,6 +109,8 @@
       {},
       {}
     ],
-    "deck": {}
+    "deck": {
+      "transition": "none"
+    }
   }
 }

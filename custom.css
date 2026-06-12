@@ -2,6 +2,10 @@
     --sl-font-size: 20px;
 }
 
+.reveal .slides section > .marimo-slide-content {
+    justify-content: flex-start !important;
+}
+
 h1 {
     font-size: 2rem;
     margin: 0.2em 0;
@@ -28,3 +32,21 @@ h1, h2, h3, h4, h5, h6 {
 .paragraph {
   font-size: 1.2rem;
 }
+
+
+.tag-d {
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 500;
+  padding: 2px 7px;
+  border-radius: 999px;
+  margin-top: 2px;
+  width: fit-content;
+}
+.tag-intro-d    { background: #26215C; color: #CECBF6; }
+.tag-theory-d   { background: #04342C; color: #9FE1CB; }
+.tag-method-d   { background: #042C53; color: #B5D4F4; }
+.tag-results-d  { background: #173404; color: #C0DD97; }
+.tag-critique-d { background: #4A1B0C; color: #F5C4B3; }
