@@ -478,7 +478,7 @@ def _():
 @app.cell
 def _():
     video_compare_diffusion = render_scene("animations.compare_diffusion", "CompareDiffusionAnimation")
-    video_compare_diffusion
+    mo.center(video_compare_diffusion)
     return
 
 
@@ -518,7 +518,7 @@ def _():
 @app.cell
 def _():
     video_diffusion_denoise = render_scene("animations.diffusion_denoise", "DiffusionProcessAnimation")
-    video_diffusion_denoise
+    mo.center(video_diffusion_denoise)
     return
 
 
@@ -532,12 +532,6 @@ def _():
                                 kind="info",
                             )
     return
-
-
-@app.cell(hide_code=True)
-def _():
-    video_ssm = render_scene("animations.ssm", "SSMAnimation")
-    return (video_ssm,)
 
 
 @app.cell
@@ -574,8 +568,9 @@ def _():
 
 
 @app.cell(hide_code=True)
-def _(video_ssm):
-    video_ssm
+def _():
+    video_ssm = render_scene("animations.ssm", "SSMAnimation")
+    mo.center(video_ssm)
     return
 
 
@@ -820,7 +815,7 @@ def _():
 @app.cell
 def _():
     video_two_stage = render_scene("animations.two_stage", "TwoStageTraining")
-    video_two_stage
+    mo.center(video_two_stage)
     return
 
 
@@ -910,7 +905,7 @@ def _():
 
 @app.cell
 def _():
-    mo.video("media/videos/paper_video_short.mp4")
+    mo.center(mo.video("media/videos/paper_video_short.mp4"))
     return
 
 
