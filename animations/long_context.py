@@ -214,9 +214,7 @@ class LongContextComparison(Scene):
         )
         lbl_L.next_to(panel_L, UP, buff=0.15)
 
-        lbl_R = Text(
-            "StateSpaceDiffuser  (Ours)", font_size=20, color=SSM_COLOR, weight=BOLD
-        )
+        lbl_R = Text("StateSpaceDiffuser", font_size=20, color=SSM_COLOR, weight=BOLD)
         lbl_R.next_to(panel_R, UP, buff=0.15)
 
         self.play(
