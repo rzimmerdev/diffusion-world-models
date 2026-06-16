@@ -25,15 +25,19 @@
       {
         "speakerNotes": "The presented paper uses a UNet-based diffusion model, called DIAMOND as its diffusion backbone model designed for sequential visual prediction, generating frames with only 3 denoising iterations."
       },
+      {
+        "type": "fragment"
+      },
       {},
       {
         "speakerNotes": "Diffusion models are excellent at generating high-fidelity images but carry no persistent state between frames beyond their short context window.",
-        "type": "fragment"
+        "type": "slide"
       },
       {},
       {
         "type": "fragment"
       },
+      {},
       {
         "type": "slide",
         "speakerNotes": "Similar to how recurrent neural networks (RNNs) manage information flow, selective gating allows the model to focus on relevant features while ignoring irrelevant ones. Overall its what enables handling long-term dependencies and improving the model's ability to capture time-based patterns in data."
@@ -71,7 +75,9 @@
       {
         "speakerNotes": "For evaluating how well the long-context memory performs, the authors design an evaluation protocol to stress-test long-term memory.\nThe evaluation loop starts with the agent taking n actions forward, then n mirrored actions backward (turning left becomes turning right, etc.). \nThe second half of the sequence should be identical in content to the first half, meaning the evaluation step is capable of identifying if  the model can recall what it saw up to n steps ago. \n\nThe evaluation metric used is the Peak signal-to-noise ratio (PSNR) on each reverse frame, especially the final frame, which requires recalling the oldest possible memory in frame i_1.\nThe PSNR is just the MSE between a noise-free series (the original observation) and its noisy approximation (the generated series).\n."
       },
-      {},
+      {
+        "type": "fragment"
+      },
       {},
       {
         "speakerNotes": "The CSGO environment has 51 differenct action types. Tt is a visually complex task with continuous motion and effects that have effects way further in the future. In this env, the model is evaluated with a **user study** (12 participants) due to the known mismatch between PSNR and perceptual quality in video."
@@ -79,10 +85,11 @@
       {},
       {},
       {
-        "speakerNotes": "StateSpaceDiffuser achieves +51.9% average PSNR improvement over the DIAMOND baseline at context length 50.\n\nThe gain is even larger (+56.3%) on the hardest case, where the final frame requires recalling content from 50 steps ago, thus with the results we see where SSM's persistent state matters most."
+        "speakerNotes": "Three baselines are compared:\n\n**DIAMOND**: pure diffusion with no long-term memory.\n\n**State-Space World Model (SSVM)**: SSM branch alone decoded directly to images (shows good long-term memory but bad quality/performance).\n\n**SSD w/o state**: StateSpaceDiffuser with SSM features zeroed out. Performance drops *below* baseline, which confirms the features are actively use.\n\nThe combination (SSD) outperforms both components individually, i.e. they are complementary."
       },
       {
-        "speakerNotes": "Three baselines are compared:\n\n**DIAMOND**: pure diffusion with no long-term memory.\n\n**State-Space World Model (SSVM)**: SSM branch alone decoded directly to images (shows good long-term memory but bad quality/performance).\n\n**SSD w/o state**: StateSpaceDiffuser with SSM features zeroed out. Performance drops *below* baseline, which confirms the features are actively use.\n\nThe combination (SSD) outperforms both components individually, i.e. they are complementary."
+        "speakerNotes": "StateSpaceDiffuser achieves +51.9% average PSNR improvement over the DIAMOND baseline at context length 50.\n\nThe gain is even larger (+56.3%) on the hardest case, where the final frame requires recalling content from 50 steps ago, thus with the results we see where SSM's persistent state matters most.",
+        "type": "fragment"
       },
       {
         "speakerNotes": "### CSGO User Study\nFor the 3D environment, PSNR is a poor proxy for perceptual quality (known issue in continuous video). Instead, 12 participants rated whether StateSpaceDiffuser or DIAMOND generated frames closer to the labels.\nRating scale: [-1, 1], where -1 = prefer baseline, +1 = prefer SSD, 0 = borderline.\n---\nThis generalisation is not a coincidence. It follows directly from the SSM's computational structure of the recurrence expression, by applying it identically regardless of how long the sequence is. The state simply keeps accumulating and there is no architectural limit on T\nThe diffusion model, by contrast, was designed for a fixed short context and cannot benefit from a longer history even if one were provided. A clear human preference for SSD, growing stronger the further back in the sequence the recall must reach."
@@ -100,14 +107,16 @@
         "speakerNotes": "An additional important result is that the SSM branch contributes **less than 2%** of total inference compute.\n\nAt inference time, the Mamba SSM processes each new frame in a single recurrent step and doesn't require iterating over the full history\n\nCompare to a transformer approach, which has growing KV cache.\nThe diffusion model (DIAMOND) does the heavy lifting with the full UNet denoising pass for each generated frame."
       },
       {
-        "type": "fragment"
+        "type": "fragment",
+        "speakerNotes": "An additional important result is that the SSM branch contributes **less than 2%** of total inference compute."
       },
       {},
       {
         "speakerNotes": "The paper puts out very explicitly what does not yet work well.\n\n**Low-dimensional bottleneck.** \nThe SSM state has dimension 256. In extended rollouts, especially in visually complex environments like CSGO. \nIn these, fine-grained detail is frequently lost as the state is compressed over many steps so that scaling the SSM (more heads, layers, larger state) is expected to help but was not explored within this compute budget.\n\n**Lightweight diffusion network.** \nDIAMOND is a relatively small UNet. Replacing it with a larger pretrained model (e.g., a video diffusion transformer) could dramatically improve visual sharpness, without changing the method.\n---\nWhat this means for the field\nThe results propose a very interesting discussion for world models: how should memory and generation be decoupled?\nState models are a natural fit and very well understood in the math literature, even more so for sequential generative task where context windows are usually the compute source."
       },
       {
-        "speakerNotes": "The paper puts out very explicitly what does not yet work well.\n\n**Sensitivity to current-step noise.** \nWhile the model recovers from noisy *future* inputs, it is sensitive to noise in the *current* step. This is a known limitation of uusing sliding windows for the generation strategy.\n\n**No active memory management.** \nThe SSM compresses everything equally, meaning there is no mechanism to explicitly prioritise task-relevant (or just overall more relevant in the sense of more information) memories over irrelevant ones. \nSelective attention over the state can be a promising extension.\n---\n**Future directions suggested by the authors**\n\n- Scaling the SSM state dimension and depth. \n- Replacing DIAMOND with a larger diffusion backbone. \n- Applying the approach to real-world ego-centric video (point of view). \n- Combining with agent planning where the persistent state could serve as a planning memory for RL agents."
+        "speakerNotes": "The paper puts out very explicitly what does not yet work well.\n\n**Sensitivity to current-step noise.** \nWhile the model recovers from noisy *future* inputs, it is sensitive to noise in the *current* step. This is a known limitation of uusing sliding windows for the generation strategy.\n\n**No active memory management.** \nThe SSM compresses everything equally, meaning there is no mechanism to explicitly prioritise task-relevant (or just overall more relevant in the sense of more information) memories over irrelevant ones. \nSelective attention over the state can be a promising extension.\n---\n**Future directions suggested by the authors**\n\n- Scaling the SSM state dimension and depth. \n- Replacing DIAMOND with a larger diffusion backbone. \n- Applying the approach to real-world ego-centric video (point of view). \n- Combining with agent planning where the persistent state could serve as a planning memory for RL agents.",
+        "type": "skip"
       },
       {},
       {},

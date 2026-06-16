@@ -145,7 +145,7 @@ def _():
 
         INSAIT, Sofia University · ETH Zurich · TU Munich
 
-        *arXiv:2505.22246  October 2025*
+        *NeurIPS 2025 (10.48550/arXiv.2505.22246)*
         """),
             mo.callout(
                 mo.md(
@@ -397,11 +397,11 @@ def _(video_world_model):
                     mo.vstack(
                         [
                             mo.md("""
-                This section will shortly cover the formal definition of a world model and move on to more interesting aspects of the StateSpaceDiffuser model.
+    So, what is a world model?  
+    How is it different from just a generative model?
 
-                Given a trajectory of interactions $a_1, a_2, \\ldots, a_{T-1}$ producing observations $I_1, I_2, \\ldots, I_T,$ the world model $\\mathcal{F}$ predicts the next frame:
-                $$I_{T+1} = \\mathcal{F}\\bigl([I_1,\\ldots,I_T],\\,[a_1,\\ldots,a_T]\\bigr).$$
-                """),
+    Given a trajectory of interactions $a_1, a_2, \\ldots, a_{T-1}$ producing observations $I_1, I_2, \\ldots, I_T,$ the world model $\\mathcal{F}$ predicts the next frame $I_{T+1}$:
+    $$I_{T+1} = \\mathcal{F}\\bigl([I_1,\\ldots,I_T],\\,[a_1,\\ldots,a_T]\\bigr).$$"""),
                         ],
                         gap=1,
                     ),
@@ -425,12 +425,10 @@ def _():
                     mo.vstack(
                         [
                             mo.md("""
-    Diffusion models have a hard architectural constraint due to computation costs 
+    Computation costs for diffusion approaches **increase exponentially** with $T$, thus context windows are limited to size $K$:
     $$I_{T+1} = \\mathcal{F}\\bigl([I_{T-K+1},\\ldots,I_T],\\,[a_{T-K+1},\\ldots,a_T]\\bigr)$$
-    (The input of $I_t$ and $a_t$ are thus restricted up to only $K$ steps in the past).
 
-    As the agent explores and later revisits a location, the model has no memory of what it looked like, that is, the scene *drifts*, also called **temporal drift**.
-                """),
+    As $T \\gg K$ (after the agent explores a lot), the model loses memory of previous observations, called **temporal drift**."""),
                         ],
                         gap=1,
                     ),
@@ -458,12 +456,10 @@ def _():
                     mo.vstack(
                         [
                             mo.md("""
-    Diffusion models have a hard architectural constraint due to computation costs
+    Computation costs for diffusion approaches **increase exponentially** with $T$, thus context windows are limited to size $K$:
     $$I_{T+1} = \\mathcal{F}\\bigl([I_{T-K+1},\\ldots,I_T],\\,[a_{T-K+1},\\ldots,a_T]\\bigr)$$
-    (The input of $I_t$ and $a_t$ are thus restricted up to only $K$ steps in the past).
 
-    As the agent explores and later revisits a location, the model has no memory of what it looked like, that is, the scene *drifts*, also called **temporal drift**.
-                """),
+    As $T \\gg K$ (after the agent explores a lot), the model loses memory of previous observations, called **temporal drift**."""),
                         ],
                         gap=1,
                     ),
@@ -490,28 +486,23 @@ def _(create_slide_index):
 
 @app.cell(hide_code=True)
 def _():
-    diffusion_models = mo.hstack(
-                [
-                    mo.vstack(
-                        [
-                            mo.md("""
+    diffusion_models = mo.md("""
                 **Forward process**: repeatedly corrupt a clean image $x_0$ by applying gaussian noise:
                 $$q(x_t \\mid x_{t-1}) = \\mathcal{N}\\!\\left(x_t;\\,\\sqrt{1-\\beta_t}\\,x_{t-1},\\,\\beta_t I\\right)$$
 
                 **Reverse process**: a neural network $\\epsilon_\\theta$ learns to
                 undo one step of noise:
                 $$p_\\theta(x_{t-1}\\mid x_t) = \\mathcal{N}\\!\\left(x_{t-1};\\,\\mu_\\theta(x_t, t),\\,\\Sigma_\\theta(x_t, t)\\right)$$
-                """),
-                        ],
-                        gap=1,
-                    ),
-
-                ],
-    #             widths=[0.55, 0.45],
-                gap=2,
-            )
+                """)
 
     make_slide(diffusion_models, "theory", title="Background: Diffusion Models")
+    return
+
+
+@app.cell
+def _():
+    mo.callout(mo.md("""
+    Don't let the r.h.s. scare you, it's just a Gaussian distribution with mean and variance predicted by the neural network."""))
     return
 
 
@@ -524,20 +515,21 @@ def _():
 
 @app.cell
 def _():
-    mo.callout(
-                                mo.center(mo.md("""
-                **Main point:** Diffusion models are excellent at generating
-                high-fidelity images but carry no persistent state.
-                """)),
-                                kind="info",
-                            )
+    diffusion_problem = mo.callout(
+        mo.center(mo.md("""
+    **Main point:** Diffusion models are excellent at generating
+    high-fidelity images but carry no persistent state.""")
+        ), 
+    kind="info")
+
+    make_slide(diffusion_problem, tag="theory", title="Background: Why Not Just Diffusion Models?")
     return
 
 
 @app.cell
 def _():
     state_space_models_0 = mo.center(mo.md("""
-    A **State-Space Model (SSM)** maintains a hidden state a compact summary $h_t$ of the entire history so far, updated at every step of a sequence $f_1, \\ldots, f_T$
+    A **State-Space Model (SSM)** maintains a hidden state $h_t$, simply a compact summary of the entire history so far, updated at every step of a sequence $f_1, \\ldots, f_T$
 
     $$h_t = A\\,h_{t-1} + B\\,f_t, \\qquad m_t = C\\,h_t$$"""))
 
@@ -548,18 +540,27 @@ def _():
 @app.cell
 def _():
     mo.center(mo.md("""
-    - $f_t$ are the input features at time $t$ (e.g., encoded video frames).
-    - $h_t$ is the hidden state, which is updated recurrently.
-    - $A, B, C$ are learnable matrices that govern the state update and output.
-    - $m_t$ is the output memory at time $t$, derived from the hidden state.
+    - $f_t$ are the input features/frames at time $t$.
+    - $h_t$ is the hidden state.
+    - $A, B, C$ are learnable matrices that weigh the hidden state and features.
+    - $m_t$ is the output memory at time $t$.
     """))
     return
 
 
 @app.cell
 def _():
+    mo.vstack([mo.center(mo.image("https://substackcdn.com/image/fetch/$s_!SFe0!,w_1456,c_limit,f_webp,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F0876819d-8a46-4187-9826-14391bfd47b9_1796x624.png")),
+    mo.center(mo.md("`A Visual Guide to Mamba and State-Space Models: An Alternative to Transformers for Language Modeling` (Maarten Grootendorst, 2024)"))
+               ])
+    return
+
+
+@app.cell
+def _():
     state_space_models_2 = mo.md("""\n
-    *Selective gating* dynamically decides what information to retain or discard. Think of LSTM's and GRU's gates, but here we apply it to the state-space model's parameters.
+    The authors use a SSM with **Selective gating**. This *upgrade* dynamically decides what information to retain or discard.  
+    Think of the **memory cells** in LSTM's and GRU's gates, but applied to a decoupled latent space.
 
     $$\\Delta, B, C = \\text{Linear}(f_t), \\quad \\bar{A} = e^{\\Delta A}$$""")
 
@@ -574,7 +575,7 @@ def _():
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _():
     complexity_comparison = mo.vstack([
         mo.center(
@@ -616,13 +617,14 @@ def _():
 
 @app.cell
 def _():
-    gap = mo.hstack([mo.md(""), mo.md("""
-                                    **The gap the StateSpaceDiffuser fills**
-
-                                    High-fidelity image generation using diffusion and persistent
-                                    long-term memory (state-space) have not been combined
-                                    in a world model.
-                                    """), mo.md("")], widths=[0.15, 0.7, 0.15])
+    gap = mo.hstack([
+        mo.md(""), 
+        mo.vstack([
+            mo.center(mo.md("**The gap the StateSpaceDiffuser fills**")),
+            mo.md("""High-fidelity image generation using diffusion and persistent long-term memory (state-space) have not been combined in a world model.""")
+        ]),
+        mo.md("")
+    ], widths=[0.1, 0.8, 0.1])
 
     make_slide(gap, tag="theory", title="Background: Gap in Literature")
     return
@@ -667,11 +669,7 @@ def _():
     ## Long-Context Branch (SSM)
 
     Each frame $I_t$ is encoded by the
-    **Cosmos tokenizer** into a compact feature vector
-    $f_t \\in \\mathbb{R}^d$.
-    The discrete action $a_t$ indexes a learnable embedding of
-    dimension 16, concatenated with $f_t$. 
-
+    **Cosmos tokenizer** into a compact feature vector $f_t \\in \\mathbb{R}^d$.  
     The Mamba SSM then processes the full sequence:
     $$\\hat{f}_2, \\ldots, \\hat{f}_{T+1} = \\mathcal{M}([f_1, a_1], \\ldots, [f_T, a_T])$$
                 """),
@@ -696,11 +694,8 @@ def _():
             mo.md("""
     ## Generative Branch (Diffusion)
 
-    The DIAMOND diffusion model generates the next frame conditioned on a **short window** of 4 frames *plus* the SSM's long-context features $\\hat{f}_t$. The SSM's features are fused into the diffusion model, allowing the model to use long-term dependencies when generating the next frame.
-
-    **Fusion Module**: The two streams are merged via a two-layer MLP with SiLU:
-
-    $$\\text{cond} = \\text{concat}\\!\\left[\\text{MLP}_{\\text{mem}}(\\hat{f}_t),\\;\\text{MLP}_{\\text{act}}(e_t + \\varepsilon)\\right]$$
+    The DIAMOND diffusion model generates the next frame conditioned on a **short window** of 4 frames *plus* the SSM's long-context features $\\hat{f}_t$.  
+    The SSM's features are then fused and passed to the diffusion model.
                 """),
         ],
         gap=1,
@@ -772,8 +767,7 @@ def _():
                             mo.md("""
                 ### Stage 1 - **Train the Long-Context Branch**
 
-                The SSM is trained on long sequences to predict next-frame features from the full history, 
-                where produced features carry important long-range context cues. The loss used is then a simple L2 regression on the predicted features:
+                The SSM is trained on long sequences to predict next-frame features from the full history.
 
                 $$\\mathcal{L}_{\\text{SSM}} = \\sum_{t=1}^{T} \\|\\hat{f}_{t+1} - f_{t+1}\\|^2$$
 
@@ -793,7 +787,7 @@ def _():
                                 mo.md("""
                 **Why freeze the SSM?**
 
-                Direct end-to-end training is unstable! Diffusion's noisy gradients destabilise the SSM and diffusion learns to ignore the SSM entirely, while decoupling the two stages solves this.
+                Direct **end-to-end training is unstable**! Diffusion's noisy gradients destabilise the SSM $\\rightarrow$ Diffusion learns to ignore the SSM entirely.
                 """),
                                 kind="warn",
                             ),
@@ -827,15 +821,9 @@ def _():
 
 @app.cell
 def _():
-    long_context_0 = mo.vstack([
-        mo.hstack([
-            mo.md("""
+    long_context_0 = mo.md("""
     ## The Forward-Backward Protocol
-    The agent takes $n$ actions **forward**, then $n$ mirrored actions **backward**.
-
-    The second half of the sequence should be *identical* in content to the first half."""),
-        ], widths=[0.45, 0.55], gap=2)
-    ], gap=1)
+    The agent takes $n$ actions **forward**, then $n$ mirrored actions **backward**. The second half of the sequence should be *identical*.""")
 
     make_slide(long_context_0, tag="proposal", title="Evaluating Long-Context Memory")
     return
@@ -843,19 +831,7 @@ def _():
 
 @app.cell
 def _(video_long_context):
-    long_context_1 = mo.vstack([
-        mo.hstack([
-            mo.vstack([mo.md("""
-    ## The Forward-Backward Protocol
-    The agent takes $n$ actions **forward**, then $n$ mirrored actions **backward**.
-
-    The second half of the sequence should be *identical* in content to the first half,
-    so the model must recall what it saw up to $n$ steps ago.""")]),
-            video_long_context
-        ], widths=[0.45, 0.55], gap=2)
-    ], gap=1)
-
-    make_slide(long_context_1, tag="proposal", title="Evaluating Long-Context Memory")
+    mo.hstack([mo.md(""), video_long_context, mo.md("")], widths=[0.1, 0.6, 0.1])
     return
 
 
@@ -883,10 +859,9 @@ def _():
                             mo.md("""
     **MiniGrid** is a 2D maze with partial observations.
     The agent sees a $7\\times7$ window of an $85\\times85$ grid.
-    Sequences of 100 steps (50 forward + 50 back).
 
     **CSGO** is a 3D first-person shooter with 51 action types.
-    Performance is evaluated with a user study
+    Performance is evaluated with a **user study**.
                 """),
                         ],
                         gap=0,
@@ -911,6 +886,21 @@ def _():
 
 @app.cell
 def _():
+    results_comparison = mo.center(mo.md("""
+    Three approaches are compared:
+
+    **Pure diffusion** (DIAMOND, with no long-term memory),
+
+    **SSM branch alone** (SS-WM, State-Space World Model),
+
+    **StateSpaceDiffuser** (the authors approach)."""))
+
+    make_slide(results_comparison, tag="results", title="Results: MiniGrid Quantitative Evaluation")
+    return
+
+
+@app.cell
+def _():
     psnr = display_chart(
         "charts.psnr", "PSNRBarChart", "psnr",
         models=["DIAMOND", "SSVM", "SSD (ours)"],
@@ -920,107 +910,40 @@ def _():
         ctx50_avg=[26.13, 32.64, 39.68],
         ctx50_fin=[25.15, 32.44, 39.32],
     )
-    return (psnr,)
 
+    results_minigrid = mo.hstack([mo.md(""), psnr, mo.md("")], widths=[0.1, 0.7, 0.1])
 
-@app.cell(hide_code=True)
-def _(psnr):
-    results_minigrid_0 = mo.vstack(
-        [
-            mo.hstack(
-                [
-                    mo.vstack(
-                        [
-                            psnr,
-                        ]
-                    ),
-                    mo.vstack(
-                        [
-                            mo.callout(
-                                mo.md("""
-                **StateSpaceDiffuser achieves +51.9% average PSNR improvement
-                over the DIAMOND baseline at context length 50.**
-                """),
-                                kind="success",
-                            ),
-                        ],
-                        gap=1,
-                    ),
-                ],
-                widths=[0.55, 0.45],
-                gap=2,
-            ),
-        ],
-        gap=1,
-    )
-
-    make_slide(results_minigrid_0, tag="results", title="Results: MiniGrid Quantitative Evaluation")
-    return
-
-
-@app.cell
-def _(psnr):
-    results_minigrid_1 = mo.vstack(
-        [
-            mo.hstack(
-                [
-                    mo.vstack(
-                        [
-                           psnr,
-                            mo.md(
-                                "The combination (SSD) outperforms both components individually, i.e. they are complementary."
-                            ),
-                        ]
-                    ),
-                    mo.vstack(
-                        [
-                            mo.md("""
-                Three baselines are compared:
-
-                **DIAMOND**: pure diffusion with no long-term memory.
-
-                **State-Space World Model (SSVM)**: SSM branch alone,
-
-                **SSD w/o state**: StateSpaceDiffuser with SSM features
-                zeroed out.
-
-
-                """),
-                        ],
-                        gap=0,
-                    ),
-                ],
-                widths=[0.55, 0.45],
-                gap=1,
-            ),
-        ],
-        gap=1,
-    )
-
-    make_slide(results_minigrid_1, tag="results", title="Results: MiniGrid Quantitative Evaluation")
+    make_slide(results_minigrid, tag="results", title="Results: MiniGrid Quantitative Evaluation")
     return
 
 
 @app.cell(hide_code=True)
 def _():
-    results_csgo_0 = mo.vstack([
-        mo.hstack([
+    mo.callout(
+        mo.center(mo.md("StateSpaceDiffuser achieves **+51.9% average PSNR improvement** over the DIAMOND baseline.")),
+    kind="success")
+    return
+
+
+@app.cell(hide_code=True)
+def _():
+    results_csgo_0 = mo.hstack([
             mo.md("""
     ### CSGO User Study
 
-    12 participants rated whether StateSpaceDiffuser or DIAMOND generated frames closer to the labels.  
-    Rating scale: $[-1, 1]$
+    12 participants rate between StateSpaceDiffuser or DIAMOND baseline.  Rating scale: $[-1, 1]$
 
     **Results:**
 
     - Frame 15 (second-to-last): **+0.20**
     - Frame 17 (final, hardest): **+0.24**"""),
-            mo.md("""
-    This generalisation is **not a coincidence**. 
-    It follows directly from the SSM's computational structure of the recurrence $h_t = Ah_{t-1} + Bf_t$.
-    The diffusion model, by contrast, was designed for a fixed short context.""")
-                ], widths=[0.48, 0.48], gap=2)
-    ], gap=1)
+            mo.callout(
+                mo.md("""
+    **Generalisation without finetuning**
+
+    While performance scales with context size $K$, the DIAMOND model has to be retrained but SSD can be used as is."""),
+            kind="info")
+                ], widths=[0.4, 0.6], gap=2)
 
     make_slide(results_csgo_0, tag="results", title="Results: CSGO & Generalisation to Longer Contexts")
     return
@@ -1028,13 +951,7 @@ def _():
 
 @app.cell
 def _():
-    mo.callout(
-                mo.md("""
-    **Generalisation without finetuning**
-
-    - At length 100: SSD achieves 37.99 Avg PSNR vs 26.39 for DIAMOND (**+44%** improvement).  
-    - At length 150: SSD achieves 30.75 vs 24.35  (**+26%** improvement), with zero additional training."""),
-            kind="success")
+    mo.callout(mo.center(mo.md("""This generalisation follows directly from the SSM's recurrence depending always only on $h_{t-1}$ and $f_t$.""")))
     return
 
 
@@ -1048,16 +965,16 @@ def _():
                         [
                             mo.md("""
     The authors additionally perform an ablation study on the SSM features.  
-    **Performance drops below** the DIAMOND baseline (23.68 vs 27.13 Avg PSNR at context 16)
+    On CSGO the model without SSM features **hallucinates** content (plausible-looking but entirely wrong scenes).
 
-    On CSGO the model without SSM features **hallucinates** content (generates plausible-looking but entirely wrong scenes).
+    **Performance drops below** the DIAMOND baseline (23.68 vs 27.13 Avg PSNR at context 16)
                 """),
                         ],
                         gap=1,
                     ),
                     mo.image("media/images/ablation.png"),
                 ],
-                widths=[0.5, 0.5],
+                widths=[0.35, 0.75],
                 gap=2,
             ),
         ],
@@ -1070,35 +987,49 @@ def _():
 
 @app.cell(hide_code=True)
 def _():
-    ablation_1 = mo.vstack(
-        [
-            mo.hstack(
-                [
-                    mo.vstack(
-                        [
-                            mo.callout(
-                                mo.md("""
-
-                | Capability | Diffusion alone | SSM alone | **SSD** |
-                |---|---|---|---|
-                | Long-term memory | No | Yes | Yes |
-                | High visual fidelity | Yes | No | No |
-                | Scales with $T$ | No | Yes | Yes |
-                | Constant inference cost | - | Yes | Yes |
-                """),
-                                kind="info",
-                            ),
-                        ],
-                        gap=1,
-                    ),
-                    mo.image("media/images/ablation.png"),
-                ],
-                widths=[0.5, 0.5],
-                gap=2,
-            ),
-        ],
-        gap=1,
-    )
+    ablation_1 = capability_comparison = mo.vstack([
+        mo.center(
+            mo.callout(
+                mo.Html("""
+    <table style="width: 800px; border-collapse: collapse; font-family: monospace; font-size: 14px;">
+      <thead>
+        <tr style="background-color: #006bad; color: white; border-bottom: 2px solid #1d3a35;">
+          <th style="padding: 12px; text-align: left; width: 25%;">Capability</th>
+          <th style="padding: 12px; text-align: left; width: 25%;">Diffusion alone</th>
+          <th style="padding: 12px; text-align: left; width: 25%;">SSM alone</th>
+          <th style="padding: 12px; text-align: left; width: 25%;">SSD</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr style="border-bottom: 0px solid #1d3a35;">
+          <td style="padding: 10px;">Long-term memory</td>
+          <td style="padding: 10px;">No</td>
+          <td style="padding: 10px;">Yes</td>
+          <td style="padding: 10px;">Yes</td>
+        </tr>
+        <tr style="border-bottom: 0px solid #1d3a35;">
+          <td style="padding: 10px;">High visual fidelity</td>
+          <td style="padding: 10px;">Yes</td>
+          <td style="padding: 10px;">No</td>
+          <td style="padding: 10px;">No</td>
+        </tr>
+        <tr style="border-bottom: 0px solid #1d3a35;">
+          <td style="padding: 10px;">Scales with T</td>
+          <td style="padding: 10px;">No</td>
+          <td style="padding: 10px;">Yes</td>
+          <td style="padding: 10px;">Yes</td>
+        </tr>
+        <tr style="border-bottom: 0px solid #1d3a35; background-color: #c8e7e8;">
+          <td style="padding: 10px; font-weight: bold;">O(1) inference cost</td>
+          <td style="padding: 10px; font-weight: bold;">-</td>
+          <td style="padding: 10px; font-weight: bold;">Yes</td>
+          <td style="padding: 10px; font-weight: bold;">Yes</td>
+        </tr>
+      </tbody>
+    </table>"""),
+            )
+        )
+    ], align="center")
 
     make_slide(ablation_1, tag="results", title="Ablation: Do the SSM Features Actually Matter?")
     return
@@ -1117,29 +1048,18 @@ def _():
 
 @app.cell(hide_code=True)
 def _(components):
-    cost = mo.vstack([
-        mo.hstack([
-            mo.vstack([
-                components,
-                mo.md("""
-    An additional important result is that the SSM branch contributes **less than 2%** of total inference compute."""),
-            ]),
-            mo.vstack([
-                mo.md("""
-    Mamba SSM processes each new frame in a single recurrent step and doesn't require iterating over the full history:
-    $$h_t = Ah_{t-1} + Bf_t \\quad \\text{(one matrix multiply)}$$
-    """),
-            ], gap=1),
-        ], widths=[0.45, 0.55], gap=2),
-    ], gap=1)
+    cost =  mo.vstack([
+                mo.hstack([mo.md(""), mo.center(components), mo.md("")], widths=[0.1, 0.7, 0.1]),
+            
+            ])
 
-    make_slide(cost, tag="results", title="Computational Cost")
+    make_slide(cost, tag="results", title="Computational Cost (Per each component)")
     return
 
 
 @app.cell
 def _():
-    mo.callout(mo.md("""StateSpaceDiffuser is essentially a **very cheap upgrade** over the diffusion-only baseline, i.e. you get long-term memory at negligible additional cost."""), kind="success")
+    mo.center(mo.callout(mo.md("""StateSpaceDiffuser is essentially a **very cheap upgrade** over the diffusion-only baseline, i.e. you get long-term memory at negligible additional cost."""), kind="success"))
     return
 
 
@@ -1158,16 +1078,17 @@ def _():
     The paper puts out very explicitly what does not yet work well.
 
     **Low-dimensional bottleneck.**
-    In extended rollouts, detail is frequently lost as state is compressed, so that scaling the SSM is expected to help but was not explored within the compute budget.
+    Detail is frequently lost as state is compressed, but scaling the SMM was not explored.
 
-    **Lightweight diffusion network.** Replacing DIAMOND with a larger pretrained model (e.g., a video diffusion transformer) could dramatically improve visual sharpness."""),
+    **Lightweight diffusion network.** 
+    Replacing DIAMOND with a larger model could dramatically improve visual sharpness."""),
             ], gap=1),
             mo.vstack([
                 mo.callout(
                     mo.md("""
     **What this means for the field**
 
-    The results propose a very interesting discussion for world models: *should memory and generation be decoupled, and if so, how?*"""),
+    The results show that **decoupling memory and generation** is a valid approach."""),
                 kind="info"),
             ], gap=1),
         ], widths=[0.55, 0.45], gap=2),
@@ -1214,8 +1135,7 @@ def _():
             mo.vstack([
                 mo.md("""
     **StateSpaceDiffuser** shows that its possible to both ***remember the past*** and ***generate performantly***.  
-    A lightweight SSM branch costing < 2% of inference gives a diffusion world model persistent long-term memory, 
-    enabling it to maintain temporal coherence for an order of magnitude more steps than a diffusion-only baseline."""),
+    The lightweight SSM branch costs < 2% of inference and maintains temporal coherence for an order of magnitude more steps than a diffusion-only baseline."""),
                 mo.hstack([
                     mo.image("media/images/qrcode.png", width=64),
                     mo.md("[Interactive 2D Grid-Maze running a StateSpaceDiffuser World Model](https://rzimmerdev.github.io/diffusion-world-models/game)"),
@@ -1228,14 +1148,13 @@ def _():
             mo.hstack([
                 mo.md("""
     **Problem.** 
-    Diffusion world models forget everything beyond a short window of $K$ frames, causing temporal drift on long interactions."""),
+    Diffusion world models forget observations beyond a short window of $K$ frames."""),
                 mo.md("""
     **Idea.** 
-    Use a state-space model to process full history in $O(T)$ time and $O(1)$ (constant) memory, compressing the context into a persistent state that for the diffusion model to use via fusion module."""),
+    A state-space model can process full history in $O(1)$ memory, compressing context into a persistent state."""),
                 mo.md("""
     **Result.** 
-    +51.9% PSNR on MiniGrid at horizon 50. Positive user preference on complex environment (CSGO) vs Baseline.  
-    Zero-shot generalisation to 3× longer contexts. Less than 2% extra inference cost."""),
+    +51.9% PSNR on MiniGrid. Zero-shot generalisation to 3× longer contexts."""),
             ], gap=1, widths=[0.28, 0.36, 0.36]),
         ], gap=2),
     ], gap=1)
@@ -1271,7 +1190,7 @@ def _():
             mo.vstack([
                 mo.md("Paper references"),
                 mo.md("""
-    - **Paper:** arXiv:2505.22246
+    - **Paper:** NeurIPS 2025 (arXiv:2505.22246)
     - **Project page:**
     https://insait-institute.github.io/StateSpaceDiffuser/
     - /EOS/ (end of seminar!!)

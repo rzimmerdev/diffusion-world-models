@@ -18,32 +18,50 @@ class ComponentBreakdownChart:
         from matplotlib.patches import FancyBboxPatch
 
         fig, ax = plt.subplots(figsize=(7, 2.5))
-        fig.patch.set_facecolor("#0f0f1a")
-        ax.set_facecolor("#0f0f1a")
+        fig.patch.set_facecolor("#ffffff")  # White background
+        ax.set_facecolor("#ffffff")  # White background
         ax.set_xlim(0, len(self.components))
         ax.set_ylim(0, 1)
         ax.axis("off")
 
         y = 0.2
-        for i, (name, val, col) in enumerate(zip(self.components, self.sizes, self.colors)):
+        for i, (name, val, col) in enumerate(
+            zip(self.components, self.sizes, self.colors)
+        ):
             x = i + 0.075
-            ax.add_patch(FancyBboxPatch(
-                (x, y), self.box_width, self.box_height,
-                boxstyle="round,pad=0.02,rounding_size=0.05",
-                linewidth=2, edgecolor=col, facecolor="#141426",
-            ))
-            ax.text(
-                x + self.box_width / 2, y + self.box_height * 0.65,
-                name, ha="center", va="center", color="#cce", fontsize=9,
+            ax.add_patch(
+                FancyBboxPatch(
+                    (x, y),
+                    self.box_width,
+                    self.box_height,
+                    boxstyle="round,pad=0.02,rounding_size=0.05",
+                    linewidth=2,
+                    edgecolor=col,
+                    facecolor="#f5f5f5",  # Light gray box
+                )
             )
             ax.text(
-                x + self.box_width / 2, y + self.box_height * 0.30,
-                f"{val}%", ha="center", va="center",
-                color="#ffffff", fontsize=11, fontweight="bold",
+                x + self.box_width / 2,
+                y + self.box_height * 0.65,
+                name,
+                ha="center",
+                va="center",
+                color="#333333",
+                fontsize=9,  # Dark text
+            )
+            ax.text(
+                x + self.box_width / 2,
+                y + self.box_height * 0.30,
+                f"{val}%",
+                ha="center",
+                va="center",
+                color="#000000",
+                fontsize=11,
+                fontweight="bold",  # Black text
             )
 
         if self.title:
-            fig.suptitle(self.title, color="#cce", fontsize=11)
+            fig.suptitle(self.title, color="#333333", fontsize=11)  # Dark title
 
         fig.tight_layout()
 
