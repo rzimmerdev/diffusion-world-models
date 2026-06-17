@@ -71,7 +71,6 @@
         "speakerNotes": "So the natural question is, \"Why do the authors suggest freezing the SSM?\"\n\nThe Diffusion's noisy gradients destabilize the SSM, meaning the SSM returns constantly shifting features due to the gradients that pass from the diffusion model. \nIn return, the diffusion process learns to ignore the SSM entirely. Decoupling the two stages by freezing the SSM is meant to solve this. Additionally, it also means the SSM branch can be swapped independently at test time without retraining the (heavier) diffusion model."
       },
       {},
-      {},
       {
         "speakerNotes": "For evaluating how well the long-context memory performs, the authors design an evaluation protocol to stress-test long-term memory.\nThe evaluation loop starts with the agent taking n actions forward, then n mirrored actions backward (turning left becomes turning right, etc.). \nThe second half of the sequence should be identical in content to the first half, meaning the evaluation step is capable of identifying if  the model can recall what it saw up to n steps ago. \n\nThe evaluation metric used is the Peak signal-to-noise ratio (PSNR) on each reverse frame, especially the final frame, which requires recalling the oldest possible memory in frame i_1.\nThe PSNR is just the MSE between a noise-free series (the original observation) and its noisy approximation (the generated series).\n."
       },

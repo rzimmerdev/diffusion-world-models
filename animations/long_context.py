@@ -91,7 +91,7 @@ PSNR_SSM = [35.2, 34.8, 33.9, 33.5, 32.7]
 # ═════════════════════════════════════════════════════════════════════════════
 
 
-def make_panel(center: np.ndarray, width=4.6, height=4.2) -> RoundedRectangle:
+def make_panel(center: np.ndarray, width=4.2, height=3.4) -> RoundedRectangle:
     """Dark rounded panel background."""
     return RoundedRectangle(
         corner_radius=0.2,
@@ -170,7 +170,7 @@ def make_mini_frame(agent_pos, noise=(0.0, 0.0), cell_size=0.17, n_cells=3):
 
 def make_psnr_label(value: float, color) -> Tex:
     """PSNR score label: 'XX.X dB'."""
-    return Tex(f"{value:.1f}\\,dB", font_size=12, color=color)
+    return Tex(f"{value:.1f}\\,dB", font_size=16, color=color)
 
 
 def make_dotted_connector(top_center, bottom_center, color=GREY_C):
@@ -206,8 +206,8 @@ class LongContextComparison(Scene):
         self.wait(0.2)
 
         # ── Panels ────────────────────────────────────────────────────────
-        panel_L = make_panel(LEFT * 3.0 + DOWN * 0.15)
-        panel_R = make_panel(RIGHT * 3.0 + DOWN * 0.15)
+        panel_L = make_panel(LEFT * 3.0 + UP * 0.2)
+        panel_R = make_panel(RIGHT * 3.0 + UP * 0.2)
 
         lbl_L = Text(
             "Diffusion Baseline", font_size=20, color=DIFFUSION_COLOR, weight=BOLD
@@ -228,14 +228,14 @@ class LongContextComparison(Scene):
         # ── Common forward frames (both panels share the same forward path) ──
         fwd_label_L = Text("Forward", font_size=14, color=GREY_A, slant=ITALIC)
         fwd_label_R = Text("Forward", font_size=14, color=GREY_A, slant=ITALIC)
-        fwd_label_L.move_to(panel_L).shift(UP * 1.95 + LEFT * 1.5)
-        fwd_label_R.move_to(panel_R).shift(UP * 1.95 + LEFT * 1.5)
+        fwd_label_L.move_to(panel_L).shift(UP * 1.58 + LEFT * 1.5)
+        fwd_label_R.move_to(panel_R).shift(UP * 1.58 + LEFT * 1.5)
 
         fwd_frames_L = self._build_frame_row(
-            FORWARD_POS, panel_L.get_center(), y_off=1.45, noise=0.0
+            FORWARD_POS, panel_L.get_center(), y_off=1.17, noise=0.0
         )
         fwd_frames_R = self._build_frame_row(
-            FORWARD_POS, panel_R.get_center(), y_off=1.45, noise=0.0
+            FORWARD_POS, panel_R.get_center(), y_off=1.17, noise=0.0
         )
 
         self.play(
@@ -248,8 +248,8 @@ class LongContextComparison(Scene):
         self.wait(0.3)
 
         # ── U-turn arrow ──────────────────────────────────────────────────
-        rev_y_L = panel_L.get_center()[1] - 1.28
-        rev_y_R = panel_R.get_center()[1] - 1.28
+        rev_y_L = panel_L.get_center()[1] - 1.04
+        rev_y_R = panel_R.get_center()[1] - 1.04
         u_turn_L = self._make_uturn(fwd_frames_L[-1], rev_y_L, panel_L)
         u_turn_R = self._make_uturn(fwd_frames_R[-1], rev_y_R, panel_R)
         self.play(FadeIn(u_turn_L), FadeIn(u_turn_R), run_time=0.5)
@@ -258,20 +258,19 @@ class LongContextComparison(Scene):
         # ── Reverse frames ────────────────────────────────────────────────
         rev_label_L = Text("Reverse", font_size=14, color=GREY_A, slant=ITALIC)
         rev_label_R = Text("Reverse", font_size=14, color=GREY_A, slant=ITALIC)
-        rev_label_L.move_to(panel_L).shift(DOWN * 2.35 + LEFT * 1.6)
-        rev_label_R.move_to(panel_R).shift(DOWN * 2.35 + LEFT * 1.6)
+        rev_label_L.move_to(panel_L).shift(DOWN * 1.90 + LEFT * 1.6)
+        rev_label_R.move_to(panel_R).shift(DOWN * 1.90 + LEFT * 1.6)
 
         # Diffusion reverse: wrong positions
         rev_frames_L = self._build_frame_row(
             DIFFUSION_REVERSE,
             panel_L.get_center(),
-            y_off=-1.55,
-            noise=0.0,
+            y_off=-1.26,
             positions_given_as_absolute=True,
         )
         # SSM reverse: correct positions
         rev_frames_R = self._build_frame_row(
-            REVERSE_POS, panel_R.get_center(), y_off=-1.55, noise=0.0
+            REVERSE_POS, panel_R.get_center(), y_off=-1.26, noise=0.0
         )
 
         self.play(
@@ -300,6 +299,15 @@ class LongContextComparison(Scene):
         )
         self.wait(0.5)
 
+        # ── PSNR explainer ───────────────────────────────────────────────
+        psnr_info = Tex(
+            r"\text{PSNR values are in dB (log-scale): higher = better reconstruction}",
+            font_size=16,
+            color=GREY_A,
+        )
+        psnr_info.to_edge(DOWN, buff=1.8)
+        self.play(Write(psnr_info), run_time=0.5)
+        self.wait(0.3)
         # ── Highlight the growing PSNR gap ────────────────────────────────
         # Pulse the worst PSNR values on the diffusion side
         self.play(
@@ -327,8 +335,7 @@ class LongContextComparison(Scene):
             font_size=20,
             color=WHITE,
         )
-        msg.arrange(DOWN, buff=0.15)
-        msg.to_edge(DOWN, buff=0.6)
+        msg.next_to(psnr_info, DOWN, buff=0.15)
         self.play(Write(msg), run_time=1.2)
         self.wait(2.5)
 
@@ -387,14 +394,12 @@ class LongContextComparison(Scene):
         for i, (fw, rv) in enumerate(zip(fwd_frames, rev_frames)):
             top = fw.get_bottom()
             bot = rv.get_top()
-            conn = make_dotted_connector(
-                top, bot, color=GREY_C if psnr_color == PSNR_BAD else GREY_D
-            )
+            conn = make_dotted_connector(top, bot, color=GREY_D)
             connectors.add(conn)
 
             # PSNR label placed on the connector line, slight right offset
             mid = (top + bot) / 2
             lbl = make_psnr_label(abs(psnr_values[i]), psnr_color)
-            lbl.next_to(mid, RIGHT, buff=0.06)
+            lbl.next_to(mid, UP, buff=0.06)
             labels.add(lbl)
         return connectors, labels

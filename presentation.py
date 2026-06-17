@@ -815,12 +815,6 @@ def _():
 
 @app.cell
 def _():
-    video_long_context = render_scene("animations.long_context", "LongContextComparison")
-    return (video_long_context,)
-
-
-@app.cell
-def _():
     long_context_0 = mo.md("""
     ## The Forward-Backward Protocol
     The agent takes $n$ actions **forward**, then $n$ mirrored actions **backward**. The second half of the sequence should be *identical*.""")
@@ -830,7 +824,8 @@ def _():
 
 
 @app.cell
-def _(video_long_context):
+def _():
+    video_long_context = render_scene("animations.long_context", "LongContextComparison")
     mo.hstack([mo.md(""), video_long_context, mo.md("")], widths=[0.1, 0.6, 0.1])
     return
 
